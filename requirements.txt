@@ -1,0 +1,18 @@
+# Python >= 3.12
+
+# Core runtime deps (del paquete)
+polars>=1.0.0
+pyarrow>=14.0.0
+
+# Dev/test tooling (extra: dev)
+pytest>=8.0.0
+ruff>=0.6.0
+mypy>=1.10.0
+duckdb>=1.5.0
+
+# Stack típico para labs/semanas (sin versión mínima fijada en el repo)
+numpy
+pandas
+matplotlib
+scikit-learn
+networkx
