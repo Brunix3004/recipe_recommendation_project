@@ -1,4 +1,6 @@
 # Python >= 3.12
+kagglehub
+isodate
 
 # Core runtime deps (del paquete)
 polars>=1.0.0

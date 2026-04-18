@@ -1,0 +1,38 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.ipynb_checkpoints/
+
+# Data outputs (keep folder structure)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Artifacts (keep folder structure)
+artifacts/*
+!artifacts/.gitkeep
+
+# Generated reports
+reports/*.pdf
+
+# Logs and env files
+*.log
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
