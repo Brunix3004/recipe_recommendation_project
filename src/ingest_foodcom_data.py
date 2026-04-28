@@ -203,7 +203,7 @@ def ingest_foodcom(data_dir: Optional[str] = None, output_dir: Optional[str] = N
     return str(processed_dir)
 
 
-def main() -> None:
+def main() -> None: 
     parser = argparse.ArgumentParser(description="Ingest and process Food.com dataset")
     parser.add_argument(
         "--data-dir",
