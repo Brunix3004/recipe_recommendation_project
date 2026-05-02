@@ -632,7 +632,6 @@ PowerShell (Windows) equivalents (same scripts, Windows paths):
 ```powershell
 python src\features\build_resolved_features.py `
   --recipes data\processed\recipes_processed.csv `
-  --reviews data\processed\reviews_processed.csv `
   --out data\interim\recipes_resolved_features.parquet `
   --summary-out artifacts\week5
 ```
