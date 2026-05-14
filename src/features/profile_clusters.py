@@ -659,8 +659,10 @@ def plot_metric_by_cluster(
             plot_df.loc[plot_df["cluster"].eq(cluster), metric_col].to_numpy()
             for cluster in sorted(plot_df["cluster"].unique().tolist())
         ]
-        tick_labels = [str(cluster) for cluster in sorted(plot_df["cluster"].unique().tolist())]
-        plt.boxplot(groups, tick_labels=tick_labels, showfliers=False)
+        labels = [str(cluster) for cluster in sorted(plot_df["cluster"].unique().tolist())]
+        # Outlier-robust display only: raw data are unchanged, but extreme fliers
+        # are hidden to keep interquartile structure readable across clusters.
+        plt.boxplot(groups, labels=labels, showfliers=False)
         plt.xlabel("Cluster")
         plt.ylabel(y_label)
     plt.title(title)
