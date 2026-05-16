@@ -953,6 +953,21 @@ Despite the structural insights, several limitations prevent K-Means from perfec
     \item \textbf{Isotropic vs. Anisotropic Assumptions:} K-Means assumes isotropic variance (spherical clusters). While our joint PCA whitening step enforced this mathematically, real-world culinary groups may have complex, elongated shapes (e.g., highly specialized baking techniques). Density-based algorithms like HDBSCAN may be better suited for this continuous geometry, though they are harder to scale to half a million points.
 \end{itemize}
 
+\subsection{Discussion of Clustering Assumptions}
+
+The clustering representation was selected because it combines:
+\begin{itemize}
+    \item semantic textual information (ingredients and categories),
+    \item nutritional numerical features,
+    \item recipe complexity and preparation structure.
+\end{itemize}
+
+K-Means was chosen due to its scalability to more than 500k recipes and its compatibility with dense vector representations. However, the method assumes spherical and well-separated clusters, assumptions that only partially hold in culinary domains.
+
+The relatively low silhouette scores demonstrate that recipe spaces are continuous and overlapping rather than naturally partitioned into isolated groups.
+
+Future work will compare these results with density-based methods such as DBSCAN or HDBSCAN to better model irregular culinary manifolds and detect noise recipes or outliers.
+
 \section{Ethics and Access Note}
 
 \subsection{Data Origin}
@@ -1108,6 +1123,114 @@ This project is \textbf{fully viable} for completing all semester milestones:
 \textbf{The project is on track and ready to continue.}
 
 \appendix
+
+/
+
+\section{Week 5 Conclusions}
+
+\subsection{Representation Pipeline}
+The Week 5 pipeline successfully transformed the processed Food.com recipe data into two complementary, reusable representations: a dense numeric PCA representation and a sparse-content SVD representation. These embeddings form the foundation for downstream clustering and content-based recommendation experiments.
+
+A significant data-quality insight discovered during this stage was that the missingness in \texttt{CookTime\_Minutes} was mostly structural. The majority of missing cook times could be recovered arithmetically using the formula \texttt{TotalTime\_Minutes - PrepTime\_Minutes}, which in most cases reflected recipes where total time equaled prep time.
+
+\subsection{Numeric and Content Representations}
+The numeric features (nutrition, time, and servings) exhibited extreme right skew and outliers, requiring robust preprocessing including median imputation, p99.5 clipping, \texttt{log1p} transformation, and standardization. The resulting 15-dimensional numeric matrix was successfully reduced to 8 PCA components, preserving 93.16\% of the cumulative explained variance.
+
+On the content side, a sparse representation was constructed using ingredients, keywords, cleaned category tokens, and interpretable yield-unit tokens. These were vectorized separately, weighted appropriately, and horizontally stacked into a sparse TF-IDF matrix comprising 4,647 features. Applying TruncatedSVD reduced this high-dimensional matrix to 200 dense semantic dimensions with a retained energy of 0.527.
+
+\subsection{Final Recipe Embedding}
+The final combined representation, \texttt{X\_recipe\_reduced.npy}, concatenates the 200 content SVD dimensions with the 8 numeric PCA dimensions, producing a comprehensive 208-dimensional recipe embedding. While this embedding does not constitute a final recommendation model, it provides a stable and reusable representation layer that enables subsequent cluster analysis and comparisons against interaction-based and graph-based recommendation approaches.
+
+\section{Week 7 Conclusions}
+
+\subsection{Main Findings}
+
+This stage of the project successfully demonstrated that the recipe dataset contains meaningful latent culinary structure that can be discovered through unsupervised learning techniques.
+
+By clustering the balanced 30-dimensional representation derived from PCA and TruncatedSVD embeddings, we identified coherent culinary segments that combine both semantic ingredient information and numerical nutritional patterns. The resulting clusters separated recipes according to interpretable characteristics such as:
+\begin{itemize}
+    \item savory vs. sweet profiles,
+    \item protein-heavy vs. dessert-oriented recipes,
+    \item quick-preparation vs. long-cooking meals,
+    \item low-complexity vs. high-complexity dishes.
+\end{itemize}
+
+The clustering results confirm that the representation pipeline constructed in previous weeks preserves relevant culinary information and can support downstream recommendation tasks.
+
+\subsection{Validation Insights}
+
+The parameter sweep across multiple values of $K$ showed that clustering quality improves progressively as the number of clusters increases. The validation metrics revealed that:
+\begin{itemize}
+    \item larger values of $K$ produced more specialized culinary niches,
+    \item Davies-Bouldin scores improved consistently,
+    \item silhouette scores remained relatively low overall.
+\end{itemize}
+
+The low silhouette values indicate that culinary data forms a highly continuous semantic space rather than perfectly separated groups. This is expected in recipe domains, where categories naturally overlap (e.g., lunch recipes blending into dinner or snack recipes).
+
+Therefore, the clusters should not be interpreted as rigid categories, but rather as approximate culinary regions within a continuous recipe landscape.
+
+\subsection{K-Means Assumptions and Limitations}
+
+This project also highlighted several important limitations of K-Means in large-scale semantic datasets.
+
+K-Means assumes:
+\begin{itemize}
+    \item spherical clusters,
+    \item isotropic variance,
+    \item Euclidean distance consistency,
+    \item relatively balanced cluster sizes.
+\end{itemize}
+
+Although preprocessing steps such as whitening and Frobenius equalization improved geometric balance, real culinary patterns remain inherently non-spherical and overlapping. Some recipes naturally belong to multiple culinary styles simultaneously.
+
+Additionally, generic metadata terms and highly frequent ingredients continue to influence the embedding space despite TF-IDF down-weighting and stop-word filtering.
+
+These findings suggest that future iterations could benefit from density-based approaches such as DBSCAN or HDBSCAN, which are better suited for discovering irregular and overlapping structures.
+
+\subsection{Operational Relevance for the Product}
+
+The discovered clusters provide practical value for the final recommendation system:
+\begin{itemize}
+    \item enabling culinary segmentation,
+    \item improving cold-start recommendations,
+    \item supporting recipe exploration by category,
+    \item identifying representative recipes within culinary niches,
+    \item enabling diversity-aware recommendation strategies.
+\end{itemize}
+
+For example, cluster assignments can be incorporated as high-level latent features inside hybrid recommendation models or used to generate category-aware recipe suggestions.
+
+\subsection{Next Steps}
+
+For the following project stages, the clustering outputs will be integrated into the recommendation pipeline:
+\begin{itemize}
+    \item cluster-aware recommendation,
+    \item nearest-neighbor retrieval within clusters,
+    \item graph-based ingredient analysis,
+    \item hybrid recommendation models combining interaction and content features.
+\end{itemize}
+
+Additionally, future experimentation will explore:
+\begin{itemize}
+    \item DBSCAN/HDBSCAN for density-aware segmentation,
+    \item cluster stability under different embeddings,
+    \item cluster explainability methods,
+    \item outlier and anomaly recipe detection.
+\end{itemize}
+
+\subsection{Final Assessment}
+
+Overall, the Week 7 objectives were successfully completed. The project now has:
+\begin{itemize}
+    \item a validated clustering pipeline,
+    \item experimentally justified parameter selection,
+    \item interpretable culinary segments,
+    \item documented limitations and failure cases,
+    \item a scalable representation suitable for recommendation systems.
+\end{itemize}
+
+The clustering stage establishes a strong foundation for the recommendation and graph analytics components planned for the remainder of the semester.
 
 \section{Pipeline Code Fragments}
 
