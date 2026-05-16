@@ -10,7 +10,7 @@ In this project, clustering is not positioned as the final recommendation algori
 
 ---
 
-## 2. Inputs From Week 5
+## 2. Inputs From Week 5 
 
 Week 7 consumes Week 5 dimensionality-reduced artifacts rather than rebuilding raw features. The three core matrices are already available and row-aligned:
 

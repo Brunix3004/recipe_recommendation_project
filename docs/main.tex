@@ -1,0 +1,1250 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{array}
+
+% Page geometry
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Semester Project - Week 3}
+\lhead{Recipe Recommendation System}
+\rfoot{Page \thepage}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=black,
+    urlcolor=black,
+    citecolor=black,
+}
+
+% Code listing style
+\lstdefinestyle{pythonstyle}{
+    language=Python,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{orange},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=8pt,
+    backgroundcolor=\color{gray!5},
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    frame=single,
+    tabsize=4,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+}
+
+\lstset{style=pythonstyle}
+
+\begin{document}
+
+% Title page
+\begin{titlepage}
+    \begin{center}
+        \includegraphics[width=3.5cm]{logo-upc-png-transparente-1.png}
+        \vspace{1cm}
+
+        {\Large \textbf{UNIVERSIDAD PERUANA DE CIENCIAS APLICADAS}}\\[1.2cm]
+
+        {\Large \textbf{FACULTY OF ENGINEERING}}\\[1.8cm]
+
+        {\Large \textbf{PROJECT REPORT - RECIPE RECOMMENDATIONS PROJECT}}\\[1.2cm]
+
+        {\large Subject: Big Data}\\[0.3cm]
+        {\large NRC: 18517}\\[1.5cm]
+
+        {\large \textbf{Team members:}}\\[0.8cm]
+
+        \renewcommand{\arraystretch}{1.6}
+        \begin{tabular}{|l|c|}
+            \hline
+            \textbf{Full Name} & \textbf{Student ID} \\
+            \hline
+            Marchan Quispe, Mildred Micaela & U202213292 \\
+            \hline
+            Medina Agnini, Bruno Alessandro & U202216661 \\
+            \hline
+            Miranda Rafael, Nicolás Francisco & U202216895 \\
+            \hline
+            Rodríguez Valencia, Rosa Maria & U202212675 \\
+            \hline
+        \end{tabular}
+
+        \vfill
+
+        {\large \textbf{Professor:} Alarcon Delgado, Carlos Adrian}\\[1.5cm]
+
+        {\LARGE 2026 - 01}
+
+    \end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% Main content
+\section{Project Proposal}
+
+\subsection{Domain}
+
+The domain of this project is \textbf{digital gastronomy and culinary recommendation systems}. In a context where millions of people search for recipes online every day, there is a critical need for intelligent systems that help users discover relevant recipes based on their preferences, dietary restrictions, available ingredients, and preparation patterns.
+
+Food.com (formerly Genius Kitchen and Recipezaar) is one of the largest recipe platforms in the world, with over half a million community-contributed recipes and millions of reviews accumulated over more than two decades.
+
+\subsection{Problem Statement}
+
+The main problem this project will address is:
+
+\begin{quote}
+\textit{How can we build an intelligent recipe discovery and recommendation system that leverages the underlying structure of ingredients, culinary techniques, and user preferences to suggest relevant recipes and uncover emerging culinary patterns?}
+\end{quote}
+
+\textbf{Specific problems to solve:}
+
+\begin{enumerate}
+    \item \textbf{Similar recipe discovery:} Identify recipes that share similar nutritional characteristics, ingredients, or preparation styles.
+
+    \item \textbf{Culinary segmentation:} Group recipes into coherent clusters representing culinary styles, dietary categories, or usage patterns.
+
+    \item \textbf{Personalized recommendation:} Suggest recipes based on the behavior of similar users and the intrinsic characteristics of the recipes.
+
+    \item \textbf{Ingredient graph analysis:} Discover relationships between ingredients, identify central ingredients in different culinary styles, and detect viable substitutions.
+
+    \item \textbf{Popularity and quality prediction:} Estimate which recipes will be well received based on their characteristics and publishing context.
+\end{enumerate}
+
+\subsection{Expected Product Questions}
+
+The system should be able to answer questions such as:
+
+\begin{itemize}
+    \item ``What recipes are similar to this pasta dish I enjoyed?''
+    \item ``What healthy recipes under 30 minutes can I make with chicken and broccoli?''
+    \item ``What are the most central ingredients in Mediterranean cuisine?''
+    \item ``What new recipes should I try based on my review history?''
+    \item ``What clusters of recipes exist in my collection of favorite desserts?''
+    \item ``What ingredients can I substitute if I don't have butter?''
+\end{itemize}
+
+\subsection{Justification of Suitability for the Course}
+
+This dataset is particularly suitable for this course because it meets all structural requirements:
+
+\begin{enumerate}
+    \item \textbf{Catalog Layer:} 522,517 recipes as main entities with rich metadata (name, author, category, preparation time, nutritional information, instructions).
+
+    \item \textbf{Features Layer:} Multiple types of features available:
+    \begin{itemize}
+        \item Numerical: cooking times, nutritional information (11 metrics), servings
+        \item Categorical: recipe categories, keywords
+        \item Text: descriptions, instructions, ingredient lists
+        \item Temporal: publication dates
+        \item Structured lists: ingredients, quantities, instruction steps
+    \end{itemize}
+
+    \item \textbf{Interaction Layer:} 1,401,982 reviews representing user-recipe interactions with explicit ratings (1--5 stars) and textual feedback.
+
+    \item \textbf{Graph Layer:} Multiple potential graphs:
+    \begin{itemize}
+        \item Ingredient Graph:
+        \begin{itemize}
+            \item Nodes: Ingredients
+            \item Edges: co-occurrence of ingredients within the same recipe
+            \item Edge weight: frequency of co-occurrence across recipes
+            \item Use case: ingredient substitution and culinary pattern discovery
+        \end{itemize}
+
+        \item Recipe Similarity Graph:
+        \begin{itemize}
+            \item Nodes: recipes
+            \item Edges: similarity based on shared ingredients or user co-interactions
+            \item Weight: cosine similarity or Jaccard similarity
+            \item Use case: similar recipe recommendation
+        \end{itemize}
+
+        \item User-Recipe Bipartite Graph:
+        \begin{itemize}
+            \item Nodes: users and recipes
+            \item Edges: user interactions (ratings)
+            \item Use case: collaborative filtering and projection into user-user or item-item graphs
+        \end{itemize}
+    \end{itemize}
+    \textit{Rationale: These graph structures enable recommendation, similarity analysis, and graph-based learning methods.}
+
+    \item \textbf{Pipeline Layer:} The project already includes a reproducible and extensible ingestion script.
+\end{enumerate}
+
+\textbf{The project goes beyond basic supervised learning} by integrating:
+\begin{itemize}
+    \item Clustering to discover latent culinary segments
+    \item Dimensionality reduction for compact recipe representations
+    \item Recommendation systems (content-based, collaborative filtering, hybrid)
+    \item Graph analysis to discover structure in ingredients and recipes
+    \item Complex feature engineering from text, lists, and nutritional data
+\end{itemize}
+
+\section{Source Inventory}
+
+\subsection{Primary Source}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Attribute} & \textbf{Detail} \\
+\midrule
+Name & Food.com Recipes and Reviews \\
+Platform & Kaggle \\
+URL & \url{https://www.kaggle.com/datasets/irkaal/foodcom-recipes-and-reviews} \\
+Author/Curator & irkaal \\
+Last updated & 2020 (static dataset) \\
+License & CC0: Public Domain \\
+Format & 2 CSV files \\
+Total size & $\sim$450 MB (compressed) \\
+Usability Score & 10.0/10 (Kaggle) \\
+\bottomrule
+\end{tabular}
+\caption{Data source information}
+\label{tab:source}
+\end{table}
+
+\subsection{Raw Files}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{File} & \textbf{Rows} & \textbf{Columns} & \textbf{Size} \\
+\midrule
+\texttt{recipes.csv} & 522,517 & 28 & $\sim$350 MB \\
+\texttt{reviews.csv} & 1,401,982 & 8 & $\sim$100 MB \\
+\bottomrule
+\end{tabular}
+\caption{Raw dataset files}
+\label{tab:raw_files}
+\end{table}
+
+\subsection{Access Conditions}
+
+\begin{itemize}
+    \item \textbf{Public access:} The dataset is publicly available on Kaggle without requiring authentication.
+    \item \textbf{Programmatic download:} It can be downloaded using the Kaggle API or the \texttt{kagglehub} library.
+    \item \textbf{License:} CC0 (public domain) allows commercial and non-commercial use without restrictions.
+    \item \textbf{Redistribution:} Permitted under the CC0 license.
+    \item \textbf{Attribution:} Not legally required, but ethically recommended.
+\end{itemize}
+
+\subsection{Data Provenance}
+
+The original data comes from \textbf{Food.com} (formerly Recipezaar, founded in 1999, later acquired and renamed as Genius Kitchen, and finally Food.com). The dataset was collected and curated by Kaggle user ``irkaal'' and published in 2020.
+
+\textbf{Temporal coverage:} Recipes and reviews span from 1999 to 2020, providing over 20 years of culinary data.
+
+\section{Schema Draft}
+
+\subsection{Entity Tables}
+
+\subsubsection{Table: Recipes (Main Entity)}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{llp{6cm}}
+\toprule
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\midrule
+RecipeId & int64 & Unique recipe identifier (PK) \\
+Name & object & Recipe name \\
+AuthorId & int64 & Author identifier (FK) \\
+AuthorName & object & Author name \\
+CookTime & object & Cooking time (ISO 8601) \\
+PrepTime & object & Preparation time (ISO 8601) \\
+TotalTime & object & Total time (ISO 8601) \\
+DatePublished & object & Publication date \\
+Description & object & Textual description \\
+Images & object & Image URLs (list) \\
+RecipeCategory & object & Recipe category \\
+Keywords & object & Keywords (list) \\
+RecipeIngredientQuantities & object & Quantities (list) \\
+RecipeIngredientParts & object & Ingredients (list) \\
+AggregatedRating & float64 & Aggregated average rating \\
+ReviewCount & float64 & Number of reviews \\
+Calories & float64 & Calories per serving \\
+FatContent & float64 & Fat (g) \\
+SaturatedFatContent & float64 & Saturated fat (g) \\
+CholesterolContent & float64 & Cholesterol (mg) \\
+SodiumContent & float64 & Sodium (mg) \\
+CarbohydrateContent & float64 & Carbohydrates (g) \\
+FiberContent & float64 & Fiber (g) \\
+SugarContent & float64 & Sugar (g) \\
+ProteinContent & float64 & Protein (g) \\
+RecipeServings & float64 & Number of servings \\
+RecipeYield & object & Textual yield \\
+RecipeInstructions & object & Instruction steps (list) \\
+\bottomrule
+\end{tabular}
+\caption{Schema of the Recipes table}
+\label{tab:schema_recipes}
+\end{table}
+
+\subsubsection{Table: Reviews (Interactions)}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llp{7cm}}
+\toprule
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\midrule
+ReviewId & int64 & Unique review identifier (PK) \\
+RecipeId & int64 & Recipe identifier (FK) \\
+AuthorId & int64 & Reviewer identifier (FK) \\
+AuthorName & object & Reviewer name \\
+Rating & int64 & Rating (1--5 stars) \\
+Review & object & Review text \\
+DateSubmitted & object & Submission date \\
+DateModified & object & Modification date \\
+\bottomrule
+\end{tabular}
+\caption{Schema of the Reviews table}
+\label{tab:schema_reviews}
+\end{table}
+
+\subsection{Keys and Relationships}
+
+\begin{itemize}
+    \item \textbf{Primary Keys:}
+    \begin{itemize}
+        \item \texttt{recipes.RecipeId}
+        \item \texttt{reviews.ReviewId}
+    \end{itemize}
+
+    \item \textbf{Foreign Keys:}
+    \begin{itemize}
+        \item \texttt{reviews.RecipeId} $\rightarrow$ \texttt{recipes.RecipeId}
+        \item \texttt{recipes.AuthorId} (recipe author)
+        \item \texttt{reviews.AuthorId} (review author)
+    \end{itemize}
+
+    \item \textbf{Relationships:}
+    \begin{itemize}
+        \item Recipes $\leftrightarrow$ Reviews: One-to-many relationship (1:N)
+        \item Recipes $\leftrightarrow$ Authors: Many-to-one relationship (N:1)
+        \item Reviews $\leftrightarrow$ Reviewers: Many-to-one relationship (N:1)
+    \end{itemize}
+\end{itemize}
+
+\subsection{Expected Joins}
+
+\begin{enumerate}
+    \item \textbf{Recipe-Review Join:}
+    \begin{lstlisting}[language=SQL, caption={Main join for interaction analysis}]
+SELECT r.*, rev.Rating, rev.Review, rev.DateSubmitted
+FROM recipes r
+LEFT JOIN reviews rev ON r.RecipeId = rev.RecipeId
+    \end{lstlisting}
+
+    \item \textbf{Recipe Aggregations:}
+    \begin{lstlisting}[language=SQL, caption={Review metric aggregations}]
+SELECT
+    RecipeId,
+    COUNT(*) as num_reviews,
+    AVG(Rating) as avg_rating,
+    STDDEV(Rating) as rating_variance
+FROM reviews
+GROUP BY RecipeId
+    \end{lstlisting}
+
+    \item \textbf{Author Analysis:}
+    \begin{lstlisting}[language=SQL, caption={Analysis by author}]
+SELECT
+    AuthorId,
+    AuthorName,
+    COUNT(DISTINCT RecipeId) as num_recipes,
+    AVG(AggregatedRating) as avg_recipe_rating
+FROM recipes
+GROUP BY AuthorId, AuthorName
+    \end{lstlisting}
+\end{enumerate}
+
+\section{Processed Dataset V1}
+
+\subsection{Ingestion Process}
+
+The ingestion process is implemented in the script \texttt{ingest\_foodcom\_data.py}, which performs the following transformations:
+
+\subsubsection{Transformation Pipeline}
+
+\begin{enumerate}
+    \item \textbf{Automatic download:} Using \texttt{kagglehub} to download the dataset from Kaggle.
+
+    \item \textbf{List parsing:} Columns stored as strings are parsed into Python lists:
+    \begin{itemize}
+        \item \texttt{Images}
+        \item \texttt{Keywords}
+        \item \texttt{RecipeIngredientQuantities}
+        \item \texttt{RecipeIngredientParts}
+        \item \texttt{RecipeInstructions}
+    \end{itemize}
+
+    \item \textbf{Duration parsing:} Conversion from ISO 8601 format to minutes:
+    \begin{itemize}
+        \item \texttt{CookTime} $\rightarrow$ \texttt{CookTime\_Minutes}
+        \item \texttt{PrepTime} $\rightarrow$ \texttt{PrepTime\_Minutes}
+        \item \texttt{TotalTime} $\rightarrow$ \texttt{TotalTime\_Minutes}
+    \end{itemize}
+    \textit{Rationale: A numeric representation enables statistical analysis, filtering, and compatibility with downstream models that require continuous features.}
+
+    \item \textbf{Initial feature engineering:}
+    \begin{itemize}
+        \item \texttt{NumIngredients}: Ingredient count
+        \item \texttt{NumQuantities}: Specified quantities count
+    \end{itemize}
+    \textit{Rationale: These features provide lightweight proxies for recipe complexity and structure, useful for clustering and recommendation tasks.}
+
+    \item \textbf{Name normalization:} Conversion to snake\_case for consistency.\\
+    \textit{Rationale: Ensures compatibility across systems, avoids parsing issues, and standardizes column naming for reproducible pipelines.}
+
+    \item \textbf{Persistence:} Saving in processed CSV format.\\
+    \textit{Rationale: Structured list representations allow downstream feature extraction (e.g., ingredient-based similarity, graph construction).}
+\end{enumerate}
+
+\subsubsection{Execution Command}
+
+The script is fully reproducible and runs with:
+
+\begin{lstlisting}[language=bash, caption={Ingestion command}]
+# Install dependencies
+pip install pandas isodate kagglehub
+
+# Run the script
+python ingest_foodcom_data.py --output-dir ./data/processed
+\end{lstlisting}
+
+\subsection{Generated Processed Files}
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{File} & \textbf{Location} & \textbf{Description} \\
+\midrule
+\texttt{recipes\_processed.csv} & \texttt{data/processed/} & Cleaned and enriched recipes \\
+\texttt{reviews\_processed.csv} & \texttt{data/processed/} & Normalized reviews \\
+\bottomrule
+\end{tabular}
+\caption{Processed dataset V1 files}
+\label{tab:processed_files}
+\end{table}
+
+\subsubsection{Sample of Processed Data}
+A sample of the processed dataset is shown below:
+\begin{itemize}
+    \item Recipes (Processed)
+    \begin{center}
+        \includegraphics[width=9.5cm]{recipes_processed.jpeg}
+    \end{center}
+\end{itemize}
+\begin{itemize}
+    \item Reviews (Processed)
+    \begin{center}
+        \includegraphics[width=9.5cm]{reviews_processed.jpeg}
+    \end{center}
+\end{itemize}
+This confirms that the processed dataset is structured, normalized, and ready for downstream analysis.
+
+\subsection{Pipeline Validation}
+
+To verify correct pipeline execution:
+
+\begin{lstlisting}[language=Python, caption={Validation script}]
+import pandas as pd
+
+# Load processed data
+recipes = pd.read_csv('data/processed/recipes_processed.csv')
+reviews = pd.read_csv('data/processed/reviews_processed.csv')
+
+# Basic validations
+assert len(recipes) == 522517, "Incorrect number of recipes"
+assert len(reviews) == 1401982, "Incorrect number of reviews"
+
+# Validate that time columns were created
+assert 'CookTime_Minutes' in recipes.columns
+assert 'PrepTime_Minutes' in recipes.columns
+assert 'TotalTime_Minutes' in recipes.columns
+
+# Validate derived features
+assert 'NumIngredients' in recipes.columns
+assert recipes['NumIngredients'].notna().sum() > 0
+
+print("Pipeline validated successfully")
+\end{lstlisting}
+
+\section{Data Dictionary Draft}
+
+\subsection{Table: Recipes Processed}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{llp{4cm}p{3cm}}
+\toprule
+\textbf{Field} & \textbf{Type} & \textbf{Description} & \textbf{Values/Range} \\
+\midrule
+RecipeId & int64 & Unique recipe ID & Positive \\
+Name & string & Recipe name & Free text \\
+AuthorId & int64 & Author ID & Positive \\
+AuthorName & string & Author name & Free text \\
+CookTime & string & Cooking time ISO & E.g.: PT30M \\
+PrepTime & string & Prep time ISO & E.g.: PT15M \\
+TotalTime & string & Total time ISO & E.g.: PT45M \\
+CookTime\_Minutes & float64 & Cooking in minutes & 0.0 -- 10000+ \\
+PrepTime\_Minutes & float64 & Prep in minutes & 0.0 -- 5000+ \\
+TotalTime\_Minutes & float64 & Total in minutes & 0.0 -- 15000+ \\
+DatePublished & string & Publication date & YYYY-MM-DD \\
+Description & string & Description & Free text \\
+Images & list & Image URLs & List of strings \\
+RecipeCategory & string & Category & Desserts, Main, etc. \\
+Keywords & list & Keywords & List of strings \\
+RecipeIngredient- Quantities & list & Quantities & List of strings \\
+RecipeIngredient- Parts & list & Ingredients & List of strings \\
+NumIngredients & int64 & No. of ingredients & 1 -- 50+ \\
+NumQuantities & int64 & No. of quantities & 0 -- 50+ \\
+AggregatedRating & float64 & Average rating & 0.0 -- 5.0 \\
+ReviewCount & float64 & Total reviews & 0 -- 10000+ \\
+Calories & float64 & Calories/serving & 0.0 -- 5000+ \\
+FatContent & float64 & Fat (g) & 0.0 -- 500+ \\
+SaturatedFatContent & float64 & Saturated fat (g) & 0.0 -- 200+ \\
+CholesterolContent & float64 & Cholesterol (mg) & 0.0 -- 1000+ \\
+SodiumContent & float64 & Sodium (mg) & 0.0 -- 10000+ \\
+CarbohydrateContent & float64 & Carbohydrates (g) & 0.0 -- 500+ \\
+FiberContent & float64 & Fiber (g) & 0.0 -- 100+ \\
+SugarContent & float64 & Sugar (g) & 0.0 -- 300+ \\
+ProteinContent & float64 & Protein (g) & 0.0 -- 300+ \\
+RecipeServings & float64 & Servings & 1 -- 100+ \\
+RecipeYield & string & Textual yield & Free text \\
+RecipeInstructions & list & Steps & List of strings \\
+\bottomrule
+\end{tabular}
+\caption{Data dictionary -- Recipes Processed}
+\label{tab:dict_recipes}
+\end{table}
+
+\subsection{Table: Reviews Processed}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llp{5cm}p{3cm}}
+\toprule
+\textbf{Field} & \textbf{Type} & \textbf{Description} & \textbf{Values/Range} \\
+\midrule
+ReviewId & int64 & Unique review ID & Positive \\
+RecipeId & int64 & Recipe ID (FK) & Positive \\
+AuthorId & int64 & Reviewer ID & Positive \\
+AuthorName & string & Reviewer name & Free text \\
+Rating & int64 & Rating & 1, 2, 3, 4, 5 \\
+Review & string & Review text & Free text or NULL \\
+DateSubmitted & string & Submission date & YYYY-MM-DD \\
+DateModified & string & Modification date & YYYY-MM-DD \\
+\bottomrule
+\end{tabular}
+\caption{Data dictionary -- Reviews Processed}
+\label{tab:dict_reviews}
+\end{table}
+
+\subsection{Notes on Data Types}
+
+\begin{itemize}
+    \item \textbf{Lists (list):} In the processed CSV, lists are stored as strings containing Python list representations. Loading with \texttt{ast.literal\_eval} converts them to actual lists.
+
+    \item \textbf{Dates:} Stored as strings in ISO 8601 format. Conversion to \texttt{datetime} is required for temporal analysis.
+
+    \item \textbf{ISO 8601 durations:} Standard format such as \texttt{PT30M} (30 minutes) or \texttt{PT1H30M} (1 hour 30 minutes). The \texttt{*\_Minutes} columns are the numeric version.
+
+    \item \textbf{Null values:} Represented as \texttt{NaN} in numeric columns and empty strings or NULL in text columns.
+\end{itemize}
+
+\section{Scale Analysis}
+
+\subsection{Dataset Dimensions}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrr}
+\toprule
+\textbf{Metric} & \textbf{Recipes} & \textbf{Reviews} \\
+\midrule
+Number of rows & 522,517 & 1,401,982 \\
+Number of columns (raw) & 28 & 8 \\
+Number of columns (processed) & 31 & 8 \\
+In-memory size (MB) & $\sim$111.6 & $\sim$85.6 \\
+On-disk size CSV (MB) & $\sim$350 & $\sim$100 \\
+\bottomrule
+\end{tabular}
+\caption{Dataset dimensions}
+\label{tab:dimensions}
+\end{table}
+
+\subsection{Missingness Analysis}
+
+\subsubsection{Recipes Table}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Field} & \textbf{Non-Null} & \textbf{Null Count} & \textbf{\% Missing} \\
+\midrule
+RecipeId & 522,517 & 0 & 0.00\% \\
+Name & 522,517 & 0 & 0.00\% \\
+AuthorId & 522,517 & 0 & 0.00\% \\
+AuthorName & 522,517 & 0 & 0.00\% \\
+CookTime & 439,972 & 82,545 & 15.80\% \\
+PrepTime & 522,517 & 0 & 0.00\% \\
+TotalTime & 522,517 & 0 & 0.00\% \\
+DatePublished & 522,517 & 0 & 0.00\% \\
+Description & 522,512 & 5 & 0.00\% \\
+Images & 522,516 & 1 & 0.00\% \\
+RecipeCategory & 521,766 & 751 & 0.14\% \\
+Keywords & 505,280 & 17,237 & 3.30\% \\
+RecipeIngredient- Quantities & 522,514 & 3 & 0.00\% \\
+RecipeIngredient- Parts & 522,517 & 0 & 0.00\% \\
+AggregatedRating & 269,294 & 253,223 & 48.46\% \\
+ReviewCount & 275,028 & 247,489 & 47.37\% \\
+Calories & 522,517 & 0 & 0.00\% \\
+FatContent & 522,517 & 0 & 0.00\% \\
+SaturatedFatContent & 522,517 & 0 & 0.00\% \\
+CholesterolContent & 522,517 & 0 & 0.00\% \\
+SodiumContent & 522,517 & 0 & 0.00\% \\
+CarbohydrateContent & 522,517 & 0 & 0.00\% \\
+FiberContent & 522,517 & 0 & 0.00\% \\
+SugarContent & 522,517 & 0 & 0.00\% \\
+ProteinContent & 522,517 & 0 & 0.00\% \\
+RecipeServings & 339,606 & 182,911 & 35.00\% \\
+RecipeYield & 174,446 & 348,071 & 66.61\% \\
+RecipeInstructions & 522,517 & 0 & 0.00\% \\
+\bottomrule
+\end{tabular}
+\caption{Missingness analysis -- Recipes}
+\label{tab:missing_recipes}
+\end{table}
+
+\textbf{Key observations:}
+
+\begin{itemize}
+    \item \textbf{CookTime (15.80\% missing):} Some recipes do not specify cooking time (e.g., salads, raw recipes).
+
+    \item \textbf{AggregatedRating and ReviewCount ($\sim$48\% missing):} Nearly half of the recipes have not yet received reviews, which is typical on UGC platforms.
+
+    \item \textbf{RecipeServings (35\% missing):} Optional field that not all authors fill in.
+
+    \item \textbf{RecipeYield (66.61\% missing):} Redundant field with RecipeServings, less commonly used.
+
+    \item \textbf{Keywords (3.30\% missing):} Relatively low --- good tagging coverage.
+
+    \item \textbf{Nutritional data (0\% missing):} Critical fields completely filled.
+\end{itemize}
+
+\subsubsection{Reviews Table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Field} & \textbf{Non-Null} & \textbf{Null Count} & \textbf{\% Missing} \\
+\midrule
+ReviewId & 1,401,982 & 0 & 0.00\% \\
+RecipeId & 1,401,982 & 0 & 0.00\% \\
+AuthorId & 1,401,982 & 0 & 0.00\% \\
+AuthorName & 1,401,982 & 0 & 0.00\% \\
+Rating & 1,401,982 & 0 & 0.00\% \\
+Review & 1,401,768 & 214 & 0.02\% \\
+DateSubmitted & 1,401,982 & 0 & 0.00\% \\
+DateModified & 1,401,982 & 0 & 0.00\% \\
+\bottomrule
+\end{tabular}
+\caption{Missingness analysis -- Reviews}
+\label{tab:missing_reviews}
+\end{table}
+\textbf{Observations:}
+\begin{itemize}
+    \item Extremely complete dataset ($<$0.02\% missing in Review text).
+    \item All ratings are present (critical information for recommendations).
+\end{itemize}
+
+\subsubsection{Implications for Modelling}
+The observed missingness patterns have direct implications for downstream modeling:
+\begin{itemize}
+    \item The high percentage of missing values in AggregatedRating (~48%) and ReviewCount (~47%) indicates a significant cold-start problem for many recipes
+    \item This suggests that collaborative filtering alone will not be sufficient, as many items lack interaction data.
+    \item Content-based approaches (e.g., ingredient similarity, nutritional features) will be essential to complement recommendation strategies.
+    \item Missing RecipeServings and RecipeYield values indicate inconsistencies in user-generated content, which may require normalization or imputation.
+\end{itemize}
+Overall, the dataset requires a hybrid recommendation approach combining interaction-based and feature-based methods.
+
+\subsection{Key Distributions}
+
+\subsubsection{Rating Distribution}
+
+Based on the typical nature of culinary review datasets:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{crr}
+\toprule
+\textbf{Rating} & \textbf{Expected Count} & \textbf{Expected \%} \\
+\midrule
+5 stars & $\sim$900,000 & $\sim$64\% \\
+4 stars & $\sim$350,000 & $\sim$25\% \\
+3 stars & $\sim$100,000 & $\sim$7\% \\
+2 stars & $\sim$35,000 & $\sim$2.5\% \\
+1 star & $\sim$17,000 & $\sim$1.5\% \\
+\bottomrule
+\end{tabular}
+\caption{Expected rating distribution (typical positive bias)}
+\label{tab:rating_dist}
+\end{table}
+
+\textbf{Note:} Culinary review systems typically exhibit a positive bias (selection bias: satisfied users are more likely to leave reviews).
+
+\subsubsection{Ingredients per Recipe}
+
+\begin{itemize}
+    \item \textbf{Minimum:} 1 ingredient
+    \item \textbf{Maximum:} 50+ ingredients (complex recipes)
+    \item \textbf{Expected median:} 8--10 ingredients
+    \item \textbf{Expected mode:} 6--7 ingredients
+\end{itemize}
+
+\subsection{Sparsity and Memory Estimates}
+
+\subsubsection{User-Item Matrix (Reviews)}
+
+\begin{itemize}
+    \item \textbf{Unique users:} Estimated $\sim$270,000 (based on unique AuthorId)
+    \item \textbf{Items (Recipes):} 522,517
+    \item \textbf{Interactions:} 1,401,982
+    \item \textbf{Density:} $\frac{1,401,982}{270,000 \times 522,517} \approx 0.00099\%$ (extremely sparse)
+    \item \textbf{Sparsity:} 99.999\%
+\end{itemize}
+
+\textbf{Implications:}
+\begin{itemize}
+    \item Requires sparse matrix techniques (scipy.sparse, CSR format)
+    \item Matrix Factorization is ideal for this level of sparsity
+    \item Content-based filtering is critical as a complement
+\end{itemize}
+
+\subsubsection{Memory Estimation}
+
+\textbf{Dense format (not recommended):}
+\begin{align*}
+\text{Memory} &= 270,000 \times 522,517 \times 8 \text{ bytes (float64)} \\
+&\approx 1,128 \text{ GB (not feasible)}
+\end{align*}
+
+\textbf{Sparse format (CSR):}
+\begin{align*}
+\text{Memory} &= (1,401,982 \times 3) \times 8 \text{ bytes} \\
+&\approx 33.6 \text{ MB (feasible)}
+\end{align*}
+
+\textbf{Recipe features:}
+\begin{itemize}
+    \item Numerical matrix (11 nutritional features): $522,517 \times 11 \times 8 \approx 46$ MB
+    \item TF-IDF of ingredients (assuming 5,000 unique ingredients): $522,517 \times 5,000 \times 4 \approx 10$ GB (sparse)
+    \item TF-IDF of instructions (assuming 10,000 terms): $522,517 \times 10,000 \times 4 \approx 20$ GB (sparse)
+\end{itemize}
+
+\textbf{Total manageable with sparse matrices:} $<$ 5 GB in RAM for the entire pipeline.
+
+\subsection{Computational Complexity}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Operation} & \textbf{Complexity} & \textbf{Estimated Time} \\
+\midrule
+Full ingestion & $O(n)$ & 2--5 minutes \\
+TF-IDF of ingredients & $O(n \times m)$ & 5--10 minutes \\
+K-means (k=10, 100 iter) & $O(n \times k \times i)$ & 10--20 minutes \\
+SVD (k=100) & $O(n \times m \times k)$ & 15--30 minutes \\
+Collaborative Filtering (ALS) & $O(n \times k \times i)$ & 20--40 minutes \\
+Graph construction & $O(e)$ & 10--15 minutes \\
+\bottomrule
+\end{tabular}
+\caption{Computational complexity of main operations}
+\label{tab:complexity}
+\end{table}
+
+\textbf{Recommended hardware:}
+\begin{itemize}
+    \item RAM: 16 GB minimum, 32 GB recommended
+    \item CPU: 4+ cores for parallelization
+    \item Storage: 10 GB available
+\end{itemize}
+
+\section{Representation and Dimensionality Report}
+
+\subsection{Feature Matrices Construction}
+
+To transition from raw data tables to meaningful representations suitable for downstream clustering and recommendation, we developed a multi-layered feature engineering pipeline. The pipeline creates two complementary feature matrices, explicitly excluding interaction variables (e.g., \texttt{AggregatedRating}, \texttt{ReviewCount}) to prevent outcome leakage.
+
+\begin{enumerate}
+    \item \textbf{Dense Numeric Matrix ($522,517 \times 15$)}: 
+    Constructed using nutritional information, time features, and complexity metrics (e.g., \texttt{NumIngredients}). EDA revealed extreme right-skewness in nutrition and time variables. Consequently, these features were clipped at the 99.5th percentile, transformed using $\log(1+x)$, and standardized. Notably, missing \texttt{CookTime} was largely structural: in 99.30\% of missing cases, \texttt{TotalTime} equaled \texttt{PrepTime}, allowing us to deterministically derive \texttt{CookTime} as 0.
+    
+    \item \textbf{Sparse Content Matrix (TF-IDF, $522,517 \times 4,647$)}: 
+    Built from parsed ingredients, keywords, cleaned categories, and interpretable yield-unit tokens. Time-like keywords (e.g., `30\_mins`) were removed to avoid duplicating the numeric time features. The final matrix is highly sparse (density of 0.0027) but captures the core culinary semantics of the recipes.
+\end{enumerate}
+
+\subsection{Dimensionality Reduction}
+
+To reduce computational overhead and eliminate multicollinearity, dimensionality reduction was applied tailored to the specific nature of each matrix.
+
+\subsubsection{PCA on Numeric Features}
+Principal Component Analysis (PCA) was applied to the dense, scaled numeric matrix. The goal was to compact the 15 dimensions into independent latent components representing overall nutritional magnitude, recipe complexity, and preparation time. 
+
+\subsubsection{TruncatedSVD on TF-IDF}
+Because PCA requires centering the data (which destroys sparsity and leads to memory overflow), Truncated Singular Value Decomposition (TruncatedSVD) was applied to the TF-IDF matrix to extract latent semantic concepts (e.g., "savory/meat bases" vs. "quick desserts").
+
+\subsection{Comparison and Retained Energy}
+
+The optimal number of components was selected based on cumulative explained variance and retained energy thresholds.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llcc}
+\toprule
+\textbf{Matrix Type} & \textbf{Method} & \textbf{Components Retained} & \textbf{Cumulative Variance / Energy} \\
+\midrule
+Numerical (15 feats) & PCA & 8 & 93.16\% \\
+Textual / TF-IDF (4647 feats) & TruncatedSVD & 200 & 52.74\% \\
+\midrule
+\textbf{Combined Embedding} & \textbf{Concat} & \textbf{208} & \textbf{--} \\
+\bottomrule
+\end{tabular}
+\caption{Dimensionality reduction performance and final embedding size}
+\label{tab:dim_reduction}
+\end{table}
+
+\subsection{Visualizations}
+
+The following plots illustrate the dimensionality reduction tradeoffs.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{figures/pca_cumulative_variance.png} 
+    \caption{PCA Cumulative Explained Variance. Only 8 components are needed to capture over 90\% of the variance from the dense numeric features.}
+    \label{fig:pca_variance}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{figures/svd_retained_energy_sweep.png}
+    \caption{TruncatedSVD Retained Energy. The curve demonstrates the diffuse nature of textual variance, where 200 components capture $\sim$52\% of the energy.}
+    \label{fig:svd_variance}
+\end{figure}
+
+\subsection{Technical Interpretation and Methodological Decisions}
+
+\begin{itemize}
+    \item \textbf{Data Imputation vs. Derivation:} EDA confirmed that missing time variables should not be blindly median-imputed. By leveraging the arithmetic relationship (\texttt{TotalTime} = \texttt{PrepTime} + \texttt{CookTime}), we preserved the true distribution of preparation times without injecting artificial data.
+    \item \textbf{Handling Extreme Skewness:} Variables like \texttt{SugarContent} and \texttt{CookTime} possessed extreme outliers. Applying p99.5 clipping followed by a $\log(1+x)$ transformation was critical. Without this, PCA components would have been entirely dominated by a few outlier recipes rather than capturing general structural variance.
+    \item \textbf{SVD Retained Energy Context:} While the PCA retained 93.16\% variance with only 8 components, the SVD retained 52.74\% with 200 components. This is methodologically sound: sparse text variance is diffuse across thousands of rare terms. 200 components provide a compact, computationally viable semantic embedding without overfitting to the long tail of rare ingredients.
+    \item \textbf{Final Reusable Representation:} The final concatenation yields a 208-dimensional dense array (\texttt{X\_recipe\_reduced.npy}). This aligns perfectly with the project requirements, setting a stable, leak-free foundation for clustering (Week 7) and similarity-based recommendation (Week 10).
+\end{itemize}
+
+\section{Clustering Analysis Report}
+
+\subsection{Clustering Experiment and Architecture}
+The objective of this stage was to discover latent culinary groups within the dataset using unsupervised learning. The input to the clustering pipeline was the 208-dimensional combined feature embedding from Week 5 (200 SVD semantic components and 8 PCA numeric components). 
+
+To ensure geometric consistency for Euclidean-based algorithms like K-Means, we applied a strict equalization pipeline before clustering:
+\begin{enumerate}
+    \item Both the SVD and PCA blocks were independently standardized.
+    \item Row-wise L2 normalization was applied to the semantic SVD block to map textual variation to the unit hypersphere.
+    \item Block-wise Frobenius norm equalization was performed so that the semantic and numeric blocks contributed equally to the total distance.
+    \item A joint PCA with whitening was applied to the concatenated matrix, reducing it to a balanced, isotropic 30-dimensional space (\texttt{X\_recipe\_clustering.npy}).
+\end{enumerate}
+This ensured that K-Means would not simply split the catalog along a single hyper-dominant axis (such as generic metadata tags), but rather find balanced culinary niches. We used \texttt{MiniBatchKMeans} with a batch size of 4096 to efficiently scale to the half-million recipes.
+
+\subsection{Validation and Parameter Sweep}
+To validate the stability and quality of the clustering, we conducted a parameter sweep across $K \in \{5, 8, 10, 12, 15, 20, 25\}$. The evaluation metrics are presented in Table \ref{tab:clustering_metrics}.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{rrrrr}
+\toprule
+\textbf{K} & \textbf{Inertia} & \textbf{Silhouette} & \textbf{Davies-Bouldin} & \textbf{Runtime (s)} \\
+\midrule
+5 & 14,184,952 & 0.0225 & 4.07 & 1.61 \\
+8 & 13,387,466 & 0.0560 & 3.43 & 0.43 \\
+10 & 12,958,346 & 0.0371 & 3.74 & 0.43 \\
+12 & 12,422,866 & 0.0552 & 3.14 & 0.51 \\
+15 & 11,547,742 & 0.0758 & 2.73 & 0.60 \\
+20 & 10,833,366 & 0.0651 & \textbf{2.51} & 1.14 \\
+25 & 10,165,072 & \textbf{0.0822} & 2.53 & 0.77 \\
+\bottomrule
+\end{tabular}
+\caption{Clustering Validation Metrics across $K$ sweep.}
+\label{tab:clustering_metrics}
+\end{table}
+
+The metrics demonstrate a clear improvement in cluster separation as $K$ increases. The best Davies-Bouldin score (lower is better) is achieved at $K=20$ (2.51), while the best Silhouette score is at $K=25$ (0.082). This indicates that the recipe space does not cleanly split into just 5 major groups; instead, the balanced geometry allows the algorithm to discover 20--25 distinct culinary niches. 
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/clustering_silhouette_vs_k.png}
+        \caption{Silhouette Score vs. K.}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/clustering_davies_bouldin_vs_k.png}
+        \caption{Davies-Bouldin Score vs. K.}
+    \end{minipage}
+\end{figure}
+
+\subsection{Cluster Profile Analysis}
+We profiled the baseline partitioning ($K=5$) to understand the characteristics of the resulting clusters. By joining the cluster assignments with the original recipe metadata, we identified the following distinct groups:
+
+\begin{itemize}
+    \item \textbf{Cluster 0 (Lunch/Snacks, 45.6\%):} High-protein (21g) and high-calorie (422 kcal) savory profiles, featuring salt, butter, and onion.
+    \item \textbf{Cluster 1 (Quick Breads/Beverages, 15.2\%):} Characterized by very low protein (7g) and high calorie (450 kcal) content. Dominant ingredients include salt, butter, and sugar.
+    \item \textbf{Cluster 2 (Desserts, 26.5\%):} Calorie-dense (577 kcal) with moderate protein (9g). Distinctive for its heavy reliance on sugar, salt, and butter.
+    \item \textbf{Cluster 3 (One-Dish Meals, 5.9\%):} Savory profile with high protein (29g) and high calories (529 kcal), primarily using onion, salt, and olive oil.
+    \item \textbf{Cluster 4 (Pork/Meat, 6.7\%):} The most protein-heavy cluster (34g) with long preparation times (avg. 170 mins). Dominated by salt, onion, and garlic cloves.
+\end{itemize}
+
+The clusters clearly separate recipes along nutritional axes (protein and calories) and semantic axes (savory vs. sweet), demonstrating that the integrated 30-dimensional geometry successfully synthesized both numeric and textual information.
+
+\subsection{Failure and Limitations Analysis}
+
+Despite the structural insights, several limitations prevent K-Means from perfectly partitioning the catalog:
+
+\begin{itemize}
+    \item \textbf{Continuous Recipe Space:} The best Silhouette score is only 0.082. This low magnitude indicates that recipes do not exist as isolated, dense hyperspheres. Culinary boundaries are inherently fuzzy; a "lunch" recipe seamlessly blends into a "dinner" or "snack" recipe, leading to heavy overlapping near cluster boundaries.
+    \item \textbf{Dominance of Generic Tags in Metadata:} When profiling the raw dataset, generic platform keywords like \textit{"easy"} or \textit{"60\_mins"} remain the most frequent tags across almost all clusters. Even though these terms were heavily down-weighted or removed from the TF-IDF matrix using a strict stop-word list and a \texttt{max\_df} of 0.40 to prevent them from driving the geometry, they are still fundamentally embedded in the raw Food.com metadata.
+    \item \textbf{Isotropic vs. Anisotropic Assumptions:} K-Means assumes isotropic variance (spherical clusters). While our joint PCA whitening step enforced this mathematically, real-world culinary groups may have complex, elongated shapes (e.g., highly specialized baking techniques). Density-based algorithms like HDBSCAN may be better suited for this continuous geometry, though they are harder to scale to half a million points.
+\end{itemize}
+
+\section{Ethics and Access Note}
+
+\subsection{Data Origin}
+
+The data for this project comes from \textbf{Food.com}, a public recipe platform where users voluntarily publish culinary content and reviews. The dataset was curated and published on Kaggle under the \textbf{CC0: Public Domain} license.
+
+\subsection{Justification for Use}
+
+\begin{enumerate}
+    \item \textbf{Permissive license:} The CC0 license grants the public the right to use, modify, distribute, and build upon the dataset without restrictions.
+
+    \item \textbf{Public data:} All content on Food.com is publicly shared by platform users, who accept terms of service that permit use of their content.
+
+    \item \textbf{Aggregated dataset:} The data was already anonymized and aggregated by the original curator (irkaal) before publication.
+
+    \item \textbf{Academic purpose:} Use is exclusively educational and for research, with no commercial intent.
+\end{enumerate}
+
+\subsection{Personal Data Risks}
+
+\textbf{Identified risks:}
+
+\begin{enumerate}
+    \item \textbf{User identifiers:} The dataset contains \texttt{AuthorId} and \texttt{AuthorName}, which could link recipes to individuals.
+
+    \item \textbf{Textual content:} Descriptions and reviews may contain personal information voluntarily disclosed.
+
+    \item \textbf{Behavioral patterns:} Publication and review history could reveal dietary preferences or health restrictions.
+\end{enumerate}
+
+\textbf{Risk level:} \textcolor{orange}{\textbf{LOW-MEDIUM}}
+
+\begin{itemize}
+    \item The data was shared publicly by the users' own choice.
+    \item It does not contain sensitive information such as precise locations, financial data, or protected medical information.
+    \item Usernames are pseudonyms chosen by users, not verified real names.
+\end{itemize}
+
+\subsection{Risk Mitigation}
+
+To minimize any residual risk, the following measures will be implemented:
+
+\begin{enumerate}
+    \item \textbf{No redistribution of raw data:} Original files will not be publicly redistributed.
+
+    \item \textbf{Aggregation in reports:} Analyses will be presented in aggregated form (statistics, clusters, patterns) without exposing individual records.
+
+    \item \textbf{Anonymization in examples:} Any specific example used in reports will be anonymized (name replacement, hashed IDs).
+
+    \item \textbf{Focus on features, not identities:} The project focuses on recipe and ingredient patterns, not individual user profiles.
+
+    \item \textbf{Terms compliance:} We respect the terms of service of Kaggle and Food.com.
+
+    \item \textbf{Post-project deletion:} At the end of the semester, local copies of the raw dataset will be deleted.
+\end{enumerate}
+
+\subsection{Additional Ethical Considerations}
+
+\begin{itemize}
+    \item \textbf{Algorithmic bias:} We acknowledge that the dataset may contain cultural biases (predominance of Western cuisine) that must be considered in interpretations.
+
+    \item \textbf{Transparency:} We will clearly document the known limitations and biases of the dataset.
+
+    \item \textbf{Non-discrimination:} The recommendation system will be designed to avoid discrimination based on protected characteristics.
+
+    \item \textbf{Responsible use:} The project results will not be used for purposes that could cause harm (e.g., price manipulation, promotion of dangerous diets).
+\end{itemize}
+
+\subsection{Compliance Statement}
+
+\begin{quote}
+\textit{This project complies with all university research ethics regulations. It does not use private data, does not require additional informed consent (the data is already public), and is conducted under principles of transparency, risk minimization, and responsible data use.}
+\end{quote}
+
+\textbf{Approval:} This project is approved to proceed under Track A (Public Dataset Project).
+
+\section{Week 3 Conclusions}
+
+\subsection{Achievements}
+
+\begin{enumerate}
+    \item \textbf{Validated domain:} A clear domain (recipe recommendation) with practical applicability has been established.
+
+    \item \textbf{Suitable dataset:} The Food.com dataset meets all requirements:
+    \begin{itemize}
+        \item Non-trivial size (522K recipes, 1.4M reviews)
+        \item Multi-layer structure (catalog, features, interactions, potential graph)
+        \item Clear license (CC0)
+        \item Preprocessing complexity (lists, ISO 8601, text)
+    \end{itemize}
+
+    \item \textbf{Reproducible pipeline:} The ingestion script \texttt{ingest\_foodcom\_data.py} is functional and documented.
+
+    \item \textbf{Processed dataset V1:} Clean and enriched CSV files saved in \texttt{data/processed/}.
+
+    \item \textbf{Clear schema:} Relationships and keys well defined for future join and aggregation operations.
+
+    \item \textbf{Scale analysis:} We understand the dimensions, sparsity, and computational requirements of the project.
+
+    \item \textbf{Ethics documented:} Complete risk assessment and mitigation plan established.
+\end{enumerate}
+
+\subsection{Next Steps (Week 5)}
+
+For Week 5 (Representation and Dimensionality Report), work will focus on:
+
+\begin{enumerate}
+    \item \textbf{Advanced feature engineering:}
+    \begin{itemize}
+        \item TF-IDF of ingredients
+        \item TF-IDF of instructions
+        \item Category encoding
+        \item Temporal features (day of week, month, year of publication)
+        \item Nutritional ratios (protein/calories, fat/calories)
+    \end{itemize}
+
+    \item \textbf{Feature matrix construction:}
+    \begin{itemize}
+        \item Numerical matrix (nutritional + temporal + counts)
+        \item Textual matrix (ingredients + instructions)
+        \item Categorical matrix (one-hot encoding of categories)
+    \end{itemize}
+
+    \item \textbf{Dimensionality reduction:}
+    \begin{itemize}
+        \item PCA on numerical features
+        \item SVD/LSA on textual features
+        \item Explained variance analysis
+        \item t-SNE visualization of embeddings
+    \end{itemize}
+
+    \item \textbf{Feature quality analysis:}
+    \begin{itemize}
+        \item Correlations between features
+        \item Feature importance
+        \item Redundancy detection
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Project Viability}
+
+This project is \textbf{fully viable} for completing all semester milestones:
+
+\begin{itemize}
+    \item \checkmark \textbf{Week 3:} Dataset charter \checkmark
+    \item \checkmark \textbf{Week 5:} Representation layer (prepared)
+    \item \checkmark \textbf{Week 7:} Clustering (data suitable for K-means, DBSCAN)
+    \item \checkmark \textbf{Week 10:} Recommendation engine (complete interaction data)
+    \item \checkmark \textbf{Week 12:} Graph analytics (ingredient graph feasible)
+    \item \checkmark \textbf{Week 14:} Integrated system (scalable architecture)
+\end{itemize}
+
+\textbf{The project is on track and ready to continue.}
+
+\appendix
+
+\section{Pipeline Code Fragments}
+
+\subsection{List Parsing Function}
+
+\begin{lstlisting}[language=Python, caption={parse\_list function}]
+def parse_list(cell: Any) -> List[str]:
+    """Convert a string representation of a list into a Python list."""
+    if isinstance(cell, list):
+        return cell
+    if cell is None or (isinstance(cell, float) and pd.isna(cell)):
+        return []
+    s = str(cell).strip()
+    if not s:
+        return []
+    # Remove the R wrapper c(...) if present
+    if s.startswith('c(') and s.endswith(')'):
+        s = s[2:-1]
+    try:
+        s_normalised = s.replace('\\"', '"').replace('\"', '"')
+        if not (s_normalised.startswith('[') or s_normalised.startswith('(')):
+            s_normalised = f'[{s_normalised}]'
+        value = ast.literal_eval(s_normalised)
+        if isinstance(value, (list, tuple)):
+            return [str(item) for item in value]
+        return [str(value)]
+    except Exception:
+        return [v.strip().strip('"') for v in s.split(',') if v]
+\end{lstlisting}
+
+\subsection{Duration Parsing Function}
+
+\begin{lstlisting}[language=Python, caption={parse\_duration function}]
+def parse_duration(duration: Any) -> Optional[float]:
+    """Parse ISO 8601 duration strings into minutes."""
+    if duration is None or (isinstance(duration, float) and pd.isna(duration)):
+        return None
+    s = str(duration)
+    if not s:
+        return None
+    if isodate is None:
+        return None
+    try:
+        td = isodate.parse_duration(s)
+        return td.total_seconds() / 60.0
+    except Exception:
+        return None
+\end{lstlisting}
+
+\section{Repository Structure}
+
+\begin{lstlisting}[language=bash, caption={Project repository structure}]
+recipe-recommendation-system/
+├── artifacts/
+│   ├── ingredients_svd_features.npy
+│   └── num_pca_features.npy
+├── data/
+│   ├── interim/
+│   └── processed/
+│       ├── recipes_processed.csv
+│       └── reviews_processed.csv
+│   ├── raw/
+│   │   ├── recipes.csv
+│   │   └── reviews.csv
+├── notebooks/
+│   └── 02_week5_eda_feature_design.ipynb
+│   └── 02_week5_hypothesis_notebook.ipynb
+├── reports/
+│   ├── figures/
+│   └── BigData_week3.pdf
+│   └── week5_feature_pipeline_explanation.md
+├── src/
+│   ├── features/
+│       ├── build_content_matrix.py
+│       ├── build_numeric_matrix.py
+│       ├── build_resolved_features.py
+│       ├── CONTENT_MATRIX.MD
+│       ├── NUMERIC_MATRIX.MD
+│       ├── PCA_SVD.MD
+│       ├── reduce_dimensions.py
+│       ├── RESOLVED_FEATURES.MD
+│   └── build_features.py
+│   └── ingest_foodcom_data.py
+├── LICENCE
+├── README.md
+├── requirements.txt
+└── .gitignore
+\end{lstlisting}
+
+\section{Reproducibility Commands}
+
+\begin{lstlisting}[language=bash, caption={Complete reproduction commands}]
+# 1. Clone repository
+git clone https://github.com/Brunix3004/recipe_recommendation_project.git
+cd recipe-recommendation-system
+
+# 2. Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Run data ingestion
+python src/ingest_foodcom_data.py --output-dir ./data/processed
+
+# 5. Verify output
+ls -lh data/processed/
+# Should show:
+# recipes_processed.csv
+# reviews_processed.csv
+
+# 6. Validate data
+python -c "
+import pandas as pd
+r = pd.read_csv('data/processed/recipes_processed.csv')
+v = pd.read_csv('data/processed/reviews_processed.csv')
+print(f'Recipes: {len(r)}, Reviews: {len(v)}')
+"
+# Expected output: Recipes: 522517, Reviews: 1401982
+\end{lstlisting}
+
+
+\section{References}
+
+\begin{enumerate}
+    \item Food.com platform: \url{https://www.food.com}
+
+    \item ISO 8601 duration standard: \url{https://en.wikipedia.org/wiki/ISO_8601}
+    
+    \item Kaggle API documentation: \url{https://github.com/Kaggle/kaggle-api}
+
+    \item Original dataset: \url{https://www.kaggle.com/datasets/irkaal/foodcom-recipes-and-reviews}
+
+    \item Python isodate library: \url{https://pypi.org/project/isodate/}
+
+    \item Sparse matrix formats: \url{https://docs.scipy.org/doc/scipy/reference/sparse.html}
+\end{enumerate}
+
+\end{document}

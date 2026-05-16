@@ -20,7 +20,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, normalize
+from sklearn.decomposition import PCA
 
 
 DEFAULT_CONTENT_SVD_PATH = Path("artifacts/week5/pca_svd/X_content_svd.npy")
@@ -30,7 +31,9 @@ DEFAULT_REDUCED_FEATURE_NAMES_PATH = Path("artifacts/week5/pca_svd/reduced_featu
 DEFAULT_OUTPUT_DIR = Path("artifacts/week7/clustering_matrix")
 
 CONTENT_WEIGHT = 1.0
-NUMERIC_WEIGHT = 0.35
+NUMERIC_WEIGHT = 1.0
+N_CONTENT_KEPT = 50
+N_JOINT_COMPONENTS = 30
 
 
 def parse_args() -> argparse.Namespace:
@@ -161,87 +164,58 @@ def validate_inputs(inputs: dict[str, Any]) -> None:
         )
 
 
-def scale_numeric_pca(X_numeric_pca: np.ndarray) -> tuple[np.ndarray, StandardScaler]:
-    scaler = StandardScaler()
-    X_numeric_pca_scaled = scaler.fit_transform(X_numeric_pca).astype(np.float32)
-    return X_numeric_pca_scaled, scaler
-
-
-def apply_representation_weights(
-    X_content_svd: np.ndarray,
-    X_numeric_pca_scaled: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    # SVD is intentionally left unscaled:
-    # 1) TF-IDF normalization already happened upstream.
-    # 2) We preserve the semantic weighting structure learned by TruncatedSVD.
-    # 3) We keep the TruncatedSVD variance hierarchy intact.
-    X_content_final = (X_content_svd * CONTENT_WEIGHT).astype(np.float32, copy=False)
-
-    # Semantic similarity should dominate clustering geometry, while numeric
-    # nutrition/time structure should refine clusters without overpowering
-    # semantic structure.
-    X_numeric_final = (X_numeric_pca_scaled * NUMERIC_WEIGHT).astype(np.float32, copy=False)
-    return X_content_final, X_numeric_final
-
-
 def build_clustering_matrix(
-    X_content_final: np.ndarray,
-    X_numeric_final: np.ndarray,
+    X_content_svd: np.ndarray,
+    X_numeric_pca: np.ndarray,
+    n_content_kept: int = N_CONTENT_KEPT,
+    n_joint_components: int = N_JOINT_COMPONENTS,
+    content_weight: float = CONTENT_WEIGHT,
+    numeric_weight: float = NUMERIC_WEIGHT,
 ) -> np.ndarray:
-    X_clustering = np.hstack([X_content_final, X_numeric_final]).astype(np.float32, copy=False)
-    return X_clustering
+    X_content = X_content_svd[:, :n_content_kept].astype(np.float64, copy=True)
+    X_numeric = X_numeric_pca.astype(np.float64, copy=True)
+
+    X_content = StandardScaler().fit_transform(X_content)
+    X_numeric = StandardScaler().fit_transform(X_numeric)
+
+    X_content = normalize(X_content, norm="l2", axis=1)
+
+    content_energy = np.linalg.norm(X_content, ord="fro")
+    numeric_energy = np.linalg.norm(X_numeric, ord="fro")
+    X_content *= (content_weight / content_energy)
+    X_numeric *= (numeric_weight / numeric_energy)
+
+    X_joint = np.hstack([X_content, X_numeric])
+    X_joint = PCA(n_components=n_joint_components, whiten=True,
+                  random_state=42).fit_transform(X_joint)
+
+    return X_joint.astype(np.float32, copy=False)
 
 
-def build_feature_metadata(n_content: int, n_numeric: int) -> pd.DataFrame:
+def build_feature_metadata(n_joint_components: int) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
-    feature_index = 0
-
-    for i in range(n_content):
+    for i in range(n_joint_components):
         rows.append(
             {
-                "feature_index": feature_index,
-                "feature_name": f"content_svd_{i + 1:03d}",
-                "feature_group": "content_svd",
-                "source_representation": "X_content_svd",
-                "scaling_applied": False,
-                "representation_weight": CONTENT_WEIGHT,
-            }
-        )
-        feature_index += 1
-
-    for i in range(n_numeric):
-        rows.append(
-            {
-                "feature_index": feature_index,
-                "feature_name": f"numeric_pca_{i + 1:03d}",
-                "feature_group": "numeric_pca",
-                "source_representation": "X_numeric_pca",
+                "feature_index": i,
+                "feature_name": f"latent_joint_pca_{i + 1:03d}",
+                "feature_group": "joint_pca",
+                "source_representation": "X_joint",
                 "scaling_applied": True,
-                "representation_weight": NUMERIC_WEIGHT,
+                "representation_weight": 1.0,
             }
         )
-        feature_index += 1
-
     return pd.DataFrame(rows)
 
 
 def validate_outputs(
-    X_content_final: np.ndarray,
-    X_numeric_final: np.ndarray,
     X_clustering: np.ndarray,
     feature_metadata: pd.DataFrame,
     recipe_ids: pd.DataFrame,
+    expected_cols: int,
 ) -> None:
-    validate_matrix_2d_finite(X_content_final, "X_content_final")
-    validate_matrix_2d_finite(X_numeric_final, "X_numeric_final")
     validate_matrix_2d_finite(X_clustering, "X_clustering")
 
-    if X_content_final.shape[0] != X_numeric_final.shape[0]:
-        raise ValueError("Weighted content and numeric matrices must have matching rows.")
-    if X_clustering.shape[0] != X_content_final.shape[0]:
-        raise ValueError("Final clustering matrix row count is inconsistent.")
-
-    expected_cols = X_content_final.shape[1] + X_numeric_final.shape[1]
     if X_clustering.shape[1] != expected_cols:
         raise ValueError(
             "Final clustering matrix column count is inconsistent: "
@@ -266,11 +240,10 @@ def validate_outputs(
 
 def build_config(
     inputs: dict[str, Any],
-    X_numeric_pca_scaled: np.ndarray,
-    X_content_final: np.ndarray,
-    X_numeric_final: np.ndarray,
     X_clustering: np.ndarray,
     output_paths: dict[str, Path],
+    n_content_kept: int,
+    n_joint_components: int,
 ) -> dict[str, Any]:
     return {
         "input_paths": {
@@ -282,34 +255,28 @@ def build_config(
         "matrix_shapes": {
             "X_content_svd": list(inputs["X_content_svd"].shape),
             "X_numeric_pca": list(inputs["X_numeric_pca"].shape),
-            "X_numeric_pca_scaled": list(X_numeric_pca_scaled.shape),
-            "X_content_final_weighted": list(X_content_final.shape),
-            "X_numeric_final_weighted": list(X_numeric_final.shape),
             "X_recipe_clustering": list(X_clustering.shape),
         },
         "scaling_strategy": {
-            "numeric_representation": "StandardScaler fit_transform applied to X_numeric_pca only",
-            "content_representation": "No additional scaling applied to X_content_svd",
+            "numeric_representation": "StandardScaler on X_numeric_pca",
+            "content_representation": "StandardScaler and L2 normalization on truncated X_content_svd",
+            "joint_representation": "PCA with whitening",
         },
         "representation_weights": {
             "CONTENT_WEIGHT": CONTENT_WEIGHT,
             "NUMERIC_WEIGHT": NUMERIC_WEIGHT,
         },
+        "parameters": {
+            "n_content_kept": n_content_kept,
+            "n_joint_components": n_joint_components,
+        },
         "memory_estimates_mb": {
             "X_content_svd": estimate_matrix_mb(inputs["X_content_svd"]),
             "X_numeric_pca": estimate_matrix_mb(inputs["X_numeric_pca"]),
-            "X_numeric_pca_scaled": estimate_matrix_mb(X_numeric_pca_scaled),
             "X_recipe_clustering": estimate_matrix_mb(X_clustering),
         },
-        "rationale_not_scaling_svd": (
-            "TF-IDF normalization already occurred upstream; preserving TruncatedSVD "
-            "semantic weighting and variance hierarchy keeps latent semantic geometry stable."
-        ),
-        "rationale_numeric_lower_weight": (
-            "Semantic similarity should dominate cluster geometry; numeric nutrition/time "
-            "signals should refine cluster boundaries without overpowering content semantics."
-        ),
-        "random_state": None,
+        "rationale": "Truncated SVD tail, normalized rows/columns, block-equalized Frobenius norm, joint PCA applied.",
+        "random_state": 42,
         "artifact_paths": {name: str(path) for name, path in output_paths.items()},
     }
 
@@ -356,8 +323,8 @@ def print_summary(
     print(f"Final clustering matrix shape: {X_clustering.shape}")
     print(f"Applied weights -> content: {CONTENT_WEIGHT}, numeric: {NUMERIC_WEIGHT}")
     print(
-        "Scaling strategy -> StandardScaler on numeric PCA only; "
-        "SVD left unscaled to preserve semantic geometry."
+        "Scaling strategy -> StandardScaler on both blocks, L2 normalization on content, "
+        "Frobenius equalization, and joint PCA + whitening."
     )
     print("Output artifacts:")
     print(f"- X_recipe_clustering.npy: {output_paths['X_recipe_clustering']}")
@@ -381,32 +348,23 @@ def main() -> None:
     X_numeric_pca: np.ndarray = inputs["X_numeric_pca"]
     recipe_ids: pd.DataFrame = inputs["recipe_ids"]
 
-    X_numeric_pca_scaled, _ = scale_numeric_pca(X_numeric_pca)
-    X_content_final, X_numeric_final = apply_representation_weights(
-        X_content_svd, X_numeric_pca_scaled
-    )
-    X_clustering = build_clustering_matrix(X_content_final, X_numeric_final)
-    feature_metadata = build_feature_metadata(
-        n_content=X_content_final.shape[1],
-        n_numeric=X_numeric_final.shape[1],
-    )
+    X_clustering = build_clustering_matrix(X_content_svd, X_numeric_pca)
+    feature_metadata = build_feature_metadata(n_joint_components=X_clustering.shape[1])
 
     validate_outputs(
-        X_content_final=X_content_final,
-        X_numeric_final=X_numeric_final,
         X_clustering=X_clustering,
         feature_metadata=feature_metadata,
         recipe_ids=recipe_ids,
+        expected_cols=N_JOINT_COMPONENTS,
     )
 
     output_paths = build_output_paths(output_dir)
     config = build_config(
         inputs=inputs,
-        X_numeric_pca_scaled=X_numeric_pca_scaled,
-        X_content_final=X_content_final,
-        X_numeric_final=X_numeric_final,
         X_clustering=X_clustering,
         output_paths=output_paths,
+        n_content_kept=N_CONTENT_KEPT,
+        n_joint_components=N_JOINT_COMPONENTS,
     )
     save_outputs(
         output_paths=output_paths,

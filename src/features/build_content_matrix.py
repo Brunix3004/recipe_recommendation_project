@@ -220,9 +220,10 @@ def make_vectorizer(group: str) -> TfidfVectorizer:
     if group == "keywords":
         return TfidfVectorizer(
             min_df=10,
-            max_df=0.60,
+            max_df=0.40,
             sublinear_tf=True,
             norm="l2",
+            stop_words=["easy", "inexpensive", "beginner_cook"],
             **common,
         )
     if group == "category":
