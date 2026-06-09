@@ -968,6 +968,70 @@ The relatively low silhouette scores demonstrate that recipe spaces are continuo
 
 Future work will compare these results with density-based methods such as DBSCAN or HDBSCAN to better model irregular culinary manifolds and detect noise recipes or outliers.
 
+\section{Recommendation and Ranking Engine}
+
+\subsection{Problem Framing and Project Nature}
+In the trajectory of the course, we define the mathematical nature of our task as a \textbf{hybrid recommendation and ranking engine}. 
+While we predict latent ratings and similarities to score recipes, the operational goal is not to predict individual rating scalars, but to generate a personalized ranked list of suggestions.
+Furthermore, the unsupervised recipe clusters discovered in previous milestones can act as structured candidate pools (e.g., separating healthy meals from rich desserts), demonstrating how \textbf{segmentation feeds the ranking layer}. 
+
+\subsection{Data Alignment and 5-Core Preprocessing}
+Due to the extreme sparsity of the Food.com user-item interaction matrix ($99.998\%$), we apply a recursive \textbf{5-core filter} (retaining only users and recipes with at least 5 interactions). This reduces the matrix sparsity to $99.935\%$, stabilizing collaborative representations and making offline evaluation computationally feasible. 
+To avoid data leakage, we perform a chronological 80/20 train/test split per user based on submission timestamps, training models on past interactions and predicting future reviews.
+The resulting datasets are:
+\begin{itemize}
+    \item \textbf{Total 5-Core reviews:} 719,687 interactions.
+    \item \textbf{Active Users:} 21,792.
+    \item \textbf{Active Recipes:} 50,835.
+    \item \textbf{Training Set (80\%):} 567,342 reviews.
+    \item \textbf{Testing Set (20\%):} 152,345 reviews.
+\end{itemize}
+
+\subsection{Description of Recommendation Systems}
+
+\begin{enumerate}
+    \item \textbf{Popularity Baseline (Bayesian Average):} A non-personalized baseline that ranks recipes by their average rating smoothed towards the global average:
+    \[ \text{Score} = \frac{v}{v+m} \cdot R + \frac{m}{v+m} \cdot C \]
+    where $v$ is the review count, $R$ is the average rating, $C$ is the global mean rating, and $m=10.0$ is the smoothing constant. It prevents niche recipes with single ratings from outranking highly popular dishes.
+    
+    \item \textbf{Content-Based SVD Baseline:} A personalized content-based model. For each user, we average the 200-dimensional Truncated SVD content vectors (from Week 5) of the recipes they rated $\ge 4.0$ in the training set to construct a taste profile. Cosine similarity is computed between the user profile and candidate recipe vectors.
+    
+    \item \textbf{Collaborative SVD (Stronger System):} We construct a sparse user-item interaction matrix of training ratings, subtract user means (mean-centering), and compute sparse SVD using $K=50$ factors. Latent user and recipe factors are scaled by $\Sigma^{0.5}$, and predictions are reconstructed as:
+    \[ \hat{R}_{ui} = \text{user\_mean}_u + \vec{u}_{\text{factors}} \cdot \vec{i}_{\text{factors}} \]
+    
+    \item \textbf{Hybrid Recommender (Advanced System):} Blends Collaborative SVD and Content SVD scores. Since they operate on different scales, scores are Min-Max normalized to $[0, 1]$ within the user's candidate pool, and blended using $\alpha = 0.6$:
+    \[ \text{Score}_{\text{hybrid}} = \alpha \cdot \text{Score}_{\text{CF\_norm}} + (1-\alpha) \cdot \text{Score}_{\text{Content\_norm}} \]
+\end{enumerate}
+
+\subsection{Offline Evaluation Report}
+To evaluate the models offline, we use the standard \textbf{Sampled Metrics (k-negative) protocol}. For each test rating, the target recipe is mixed with 100 randomly sampled un-interacted recipes (negatives). We rank the 101 candidates and evaluate metrics over a representative sample of 2,000 test users. Table~\ref{tab:recommendation_metrics} summarizes the performance.
+
+\begin{table}[ht]
+\centering
+\caption{Offline Recommendation and Ranking Performance Metrics}
+\label{tab:recommendation_metrics}
+\begin{tabular}{lccccc}
+\hline
+\textbf{Recommendation Model} & \textbf{HR@5} & \textbf{HR@10} & \textbf{NDCG@5} & \textbf{NDCG@10} & \textbf{MRR} \\ \hline
+Popularity Baseline (Bayesian) & 0.0835 & 0.1373 & 0.0544 & 0.0717 & 0.0726 \\
+Content-Based SVD (Baseline) & 0.1159 & 0.1999 & 0.0715 & 0.0984 & 0.0922 \\
+Collaborative SVD (Stronger) & 0.1418 & 0.2074 & 0.0977 & 0.1188 & 0.1108 \\
+Hybrid Recommender ($\alpha=0.6$) & \textbf{0.1440} & \textbf{0.2250} & \textbf{0.0978} & \textbf{0.1238} & \textbf{0.1154} \\ \hline
+\end{tabular}
+\end{table}
+
+The Collaborative SVD model significantly outperforms the non-personalized popularity baseline, confirming the predictive power of behavioral interaction data. The Hybrid Recommender achieves the best overall performance, demonstrating that combining behavioral profiles and SVD semantic content embeddings regularizes and improves personalized recommendation.
+
+\subsection{Error Analysis and Diagnostics}
+
+\begin{itemize}
+    \item \textbf{Successful Cases (Strong Alignment):} The hybrid model successfully ranks highly rated test items in the \#1 position when both collaborative and content signals converge. For example, for User \texttt{178117}, the recipe \textit{"Jim's Microwave Scrambled Eggs"} (rated 5.0) was ranked \#1 due to strong collaborative alignment (CF rank \#2) and content keyword alignment (content rank \#25).
+    
+    \item \textbf{Failure Cases (Low Rank):} Target items rated 5.0 are ranked poorly (rank $\ge 50$) when they represent taste excursions outside the user's typical ingredient history and have low rating density in the training set. For instance, User \texttt{1443141} rated \textit{"Southern Cinnamon Sugared Pecans"} 5.0, but the hybrid model ranked it \#85 due to extremely low content similarity ($0.0621$) and sparse collaborative rating density.
+    
+    \item \textbf{Failure Cases (Disliked Recommended):} False positives occur when a recipe has very high popularity or strong category match, but the user personally disliked it (rated 1.0 or 2.0). For example, User \texttt{135887} rated \textit{"Kittencal's Strawberry Shortcake"} 2.0, but the hybrid model recommended it in the top 5 (Rank \#5) due to its high collaborative rating density from neighbors and strong matching ingredient profile.
+\end{itemize}
+
 \section{Ethics and Access Note}
 
 \subsection{Data Origin}
@@ -1232,6 +1296,28 @@ Overall, the Week 7 objectives were successfully completed. The project now has:
 
 The clustering stage establishes a strong foundation for the recommendation and graph analytics components planned for the remainder of the semester.
 
+\section{Week 10 Conclusions}
+
+\subsection{Recommendation Results and Framework Performance}
+The Week 10 milestone successfully established a personalized recommendation layer over the recipe features (Week 5) and interaction data. 
+
+The offline evaluation metrics confirmed that collaborative behavioral data is highly predictive of user tastes. The Collaborative SVD model achieved a substantial improvement over the Popularity baseline, raising the Hit Rate@10 from 13.73\% to 20.74\% and NDCG@10 from 7.17\% to 11.88\%. The personalized Content-Based SVD baseline also performed well (19.99\% HR@10), indicating that the semantic representations constructed from TF-IDF are culinarily meaningful.
+
+The Hybrid Recommender (blending 60\% Collaborative SVD and 40\% Content SVD) achieved the highest overall performance with a Hit Rate@10 of 22.50\% and an NDCG@10 of 12.38\%. This proves that incorporating content SVD embeddings serves as a regularizer, refining collaborative user preferences with ingredient-level text semantic alignment.
+
+\subsection{Error Analysis Insights and Model Diagnosis}
+The qualitative error analysis exposed the structural strengths and limitations of the recommendation models:
+\begin{itemize}
+    \item \textbf{Convergence of Signals:} Strong successes occurred when both content SVD similarity and collaborative neighbor patterns converged (e.g., ranking a user's highly-rated scrambled eggs recipe at \#1).
+    \item \textbf{Behavioral Sparsity Failure:} Collaborative filtering failed on recipes with low interaction density in the training set or when the user liked items outside their typical ingredient profile. Increasing the content weight for users with sparse histories can mitigate this.
+    \item \textbf{Popularity and Context False Positives:} Disliked recommendations (false positives) were driven by high popularity bias or ingredient category matching, showing that models occasionally miss specific personal dislikes (such as allergens or texture preferences) not captured in general semantics.
+\end{itemize}
+
+\subsection{Project Nature and Next Steps}
+The project operates as a hybrid recommendation and ranking system. 
+For future milestones (Week 12 and Week 14), these recommendation models will be integrated with graph-based representations to compare embedding-based similarity with PageRank and degree centrality.
+Additionally, we plan to implement cluster-aware candidate filtering (using the Week 7 clusters) to evaluate how catalog segmentation improves recommendation diversity and retrieval latency.
+
 \section{Pipeline Code Fragments}
 
 \subsection{List Parsing Function}
@@ -1285,6 +1371,9 @@ def parse_duration(duration: Any) -> Optional[float]:
 \begin{lstlisting}[language=bash, caption={Project repository structure}]
 recipe-recommendation-system/
 ├── artifacts/
+│   ├── week5/
+│   ├── week7/
+│   ├── week10/
 │   ├── ingredients_svd_features.npy
 │   └── num_pca_features.npy
 ├── data/
@@ -1295,13 +1384,21 @@ recipe-recommendation-system/
 │   ├── raw/
 │   │   ├── recipes.csv
 │   │   └── reviews.csv
+├── docs/
+│   ├── main.tex
 ├── notebooks/
-│   └── 02_week5_eda_feature_design.ipynb
-│   └── 02_week5_hypothesis_notebook.ipynb
+│   ├── 02_week5_eda_feature_design.ipynb
+│   ├── 02_week5_hypothesis_notebook.ipynb
+│   ├── 05_week5_pca_svd_interpretation.ipynb
+│   └── week7_clustering_audit.md
 ├── reports/
 │   ├── figures/
-│   └── BigData_week3.pdf
-│   └── week5_feature_pipeline_explanation.md
+│   ├── BigData_week3.pdf
+│   ├── BigData_week5.pdf
+│   ├── BigData_week7.pdf
+│   ├── week5_feature_pipeline_explanation.md
+│   ├── week7_Clustering_and_Recipe_Structure_Discovery.md
+│   └── week10_recommendation_explanation.md
 ├── src/
 │   ├── features/
 │       ├── build_content_matrix.py
@@ -1312,7 +1409,10 @@ recipe-recommendation-system/
 │       ├── PCA_SVD.MD
 │       ├── reduce_dimensions.py
 │       ├── RESOLVED_FEATURES.MD
-│   └── build_features.py
+│       ├── generate_week10_reports.py
+│       ├── run_recommendation_experiments.py
+│       ├── visualize_clusters.py
+│   ├── build_features.py
 │   └── ingest_foodcom_data.py
 ├── LICENCE
 ├── README.md
