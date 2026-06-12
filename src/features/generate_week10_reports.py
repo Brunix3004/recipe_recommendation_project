@@ -35,6 +35,12 @@ def parse_args() -> argparse.Namespace:
         default=Path("reports/Week10_recommendation_explanation.md"),
         help="Path where the report will be written",
     )
+    parser.add_argument(
+        "--manual-diagnoses",
+        type=Path,
+        default=Path("data/manual_diagnoses.json"),
+        help="Path to manual_diagnoses.json with human-written error analysis text",
+    )
     return parser.parse_args()
 
 
@@ -51,6 +57,7 @@ def build_report_markdown(
     run_config: dict[str, Any],
     metrics_df: pd.DataFrame,
     error_cases: list[dict[str, Any]],
+    manual_diagnoses: dict[str, Any] | None = None,
 ) -> str:
     logger.info("Building report markdown content...")
 
@@ -92,6 +99,11 @@ def build_report_markdown(
     failure_low_rank = [c for c in error_cases if c["type"] == "failure_low_rank"]
     failure_disliked = [c for c in error_cases if c["type"] == "failure_disliked_recommended"]
 
+    # Helper: look up a manual diagnosis by recipe ID, falling back to a generated one
+    manual_strong = (manual_diagnoses or {}).get("strong_cases", {})
+    manual_low_rank = (manual_diagnoses or {}).get("failure_low_rank_cases", {})
+    manual_disliked = (manual_diagnoses or {}).get("failure_disliked_cases", {})
+
     # Format strong cases
     if not strong_cases:
         strong_cases_str = "_No strong cases found in the evaluated sample._"
@@ -102,9 +114,12 @@ def build_report_markdown(
             hybrid_s = case['hybrid_score']
             cf_rank = case['ranks']['collaborative_cf'] + 1
             content_rank = case['ranks']['content_svd'] + 1
+            recipe_id_str = str(case['target_recipe'])
 
-            # Differentiated diagnosis based on which signal drove the success
-            if cf_rank <= 3 and content_rank <= 10:
+            # Use manual diagnosis if available, otherwise auto-generate
+            if recipe_id_str in manual_strong:
+                diagnosis = manual_strong[recipe_id_str]
+            elif cf_rank <= 3 and content_rank <= 10:
                 diagnosis = (
                     "Both the collaborative and content signals converge strongly on this recipe. "
                     f"The CF model ranked it #{cf_rank} (raw score {cf_raw:.4f}) while content similarity "
@@ -148,16 +163,20 @@ def build_report_markdown(
             """
 
     if not failure_low_rank:
-        failure_low_rank_str = "_No low rank failure cases found in the evaluated sample (i.e. no cases where a user rated a test recipe 1 or 2 stars but the hybrid recommender ranked it in the top 5). This indicates high precision for negative filtering._"
-    else: 
+        failure_low_rank_str = "_No low rank failure cases found in the evaluated sample._"
+    else:
         for idx, case in enumerate(failure_low_rank):
             cf_raw = case['cf_score']
             content_sim = case['content_score']
             hybrid_rank = case['ranks']['hybrid'] + 1
             cf_rank = case['ranks']['collaborative_cf'] + 1
             content_rank = case['ranks']['content_svd'] + 1
+            recipe_id_str = str(case['target_recipe'])
 
-            if content_sim < 0.15 and cf_rank > 50:
+            # Use manual diagnosis if available, otherwise auto-generate
+            if recipe_id_str in manual_low_rank:
+                diagnosis = manual_low_rank[recipe_id_str]
+            elif content_sim < 0.15 and cf_rank > 50:
                 diagnosis = (
                     f"Double-signal failure: both the collaborative model (rank #{cf_rank}) and the content model "
                     f"(similarity {content_sim:.4f}, rank #{content_rank}) score this recipe poorly for this user. "
@@ -206,7 +225,7 @@ def build_report_markdown(
 
     # Format disliked recommended failure cases
     if not failure_disliked:
-        failure_disliked_str = "_No disliked recommended cases found in the evaluated sample (i.e. no cases where a user rated a test recipe 1 or 2 stars but the hybrid recommender ranked it in the top 5). This indicates high precision for negative filtering._"
+        failure_disliked_str = "_No disliked recommended cases found in the evaluated sample._"
     else:
         for idx, case in enumerate(failure_disliked):
             cf_raw = case['cf_score']
@@ -214,8 +233,12 @@ def build_report_markdown(
             hybrid_rank = case['ranks']['hybrid'] + 1
             cf_rank = case['ranks']['collaborative_cf'] + 1
             content_rank = case['ranks']['content_svd'] + 1
+            recipe_id_str = str(case['target_recipe'])
 
-            if cf_rank <= 3 and content_rank <= 10:
+            # Use manual diagnosis if available, otherwise auto-generate
+            if recipe_id_str in manual_disliked:
+                diagnosis = manual_disliked[recipe_id_str]
+            elif cf_rank <= 3 and content_rank <= 10:
                 diagnosis = (
                     f"Strong false positive: both CF (rank #{cf_rank}, score {cf_raw:.4f}) and content "
                     f"(rank #{content_rank}, similarity {content_sim:.4f}) agree this is a good recommendation, "
@@ -446,6 +469,15 @@ python src\\features\\run_recommendation_experiments.py --reviews data\\processe
 
 python src\\features\\generate_week10_reports.py --out-dir artifacts\\week10 --report-path reports\\Week10_recommendation_explanation.md
 ```
+
+---
+
+## 8. Ethics and Access Note
+
+- **Data Source**: This project uses the publicly released Food.com Recipes and Reviews dataset, originally published on Kaggle by Shuyang Li (2019). The dataset contains recipes and user reviews scraped from the Food.com platform and made available under public research terms.
+- **Why We Are Allowed to Use It**: The dataset is a public, third-party research release available on Kaggle with no access restrictions. Food.com's recipe content and aggregate review statistics are publicly visible without authentication. No private or restricted data, no API scraping, and no bypassing of platform access controls were involved.
+- **Personal Data Risks**: The dataset contains user-generated content (review text and numeric ratings) associated with numeric Author IDs. Although names are not included, it is theoretically possible that a determined actor could cross-reference the AuthorId with other public Food.com activity to re-identify specific users.
+- **Risk Mitigation**: We use only the numeric `AuthorId`, `RecipeId`, `Rating`, and `DateSubmitted` columns for model training and evaluation. No review text, user display names, or any other identifying strings are stored, processed, or included in our artifacts. Our pipeline does not output any raw user data; only aggregated model artifacts (SVD factor matrices, Bayesian score tables) and anonymized evaluation metrics are saved.
 """
     return report_content
 
@@ -467,8 +499,19 @@ def main() -> None:
     if isinstance(error_cases, dict):
         error_cases = [error_cases]  # type: ignore
 
+    # Load manual diagnoses (human-written, domain-specific error interpretations)
+    manual_diagnoses: dict[str, Any] = {}
+    if args.manual_diagnoses.exists():
+        logger.info(f"Loading manual diagnoses from {args.manual_diagnoses}...")
+        manual_diagnoses = load_json_file(args.manual_diagnoses)
+    else:
+        logger.warning(
+            f"Manual diagnoses file not found at {args.manual_diagnoses}. "
+            "Auto-generated template text will be used for all error analysis cases."
+        )
+
     # Generate Markdown Report Content
-    report_md = build_report_markdown(data_meta, run_config, metrics_df, error_cases)
+    report_md = build_report_markdown(data_meta, run_config, metrics_df, error_cases, manual_diagnoses)
 
     # Write report
     logger.info(f"Writing final report to {args.report_path}...")
