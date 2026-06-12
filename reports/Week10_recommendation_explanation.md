@@ -120,7 +120,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) was success
             - **Hybrid Rank**: `1` / 101 (Successfully Recommended in #1 spot!)
             - **Scores**:
             - CF Raw Score: `4.0844` | Content Similarity: `0.2169` | Blended Hybrid Score: `0.7714`
-            - **Culinary / Behavior Diagnosis**: Success driven primarily by the collaborative signal (CF rank #2, raw score 4.0844). The content similarity was moderate (0.2169, rank #25), suggesting the recipe shares behavioral fans with items this user liked, even if its ingredient keywords are not an exact profile match. The hybrid blend (α=0.6 toward CF) correctly up-ranked it.
+            - **Culinary / Behavior Diagnosis**: Success driven primarily by the collaborative signal (CF rank #2). This recipe — a simple microwave scrambled egg dish — sits in a high-traffic culinary neighborhood shared by quick, low-effort breakfast items. The user's behavioral neighborhood (similar users who cook fast breakfasts) consistently interacted with this recipe, making the CF latent space strongly predictive. The relatively low content similarity (rank #25) reflects that the TF-IDF vocabulary for 'scrambled eggs' does not strongly overlap with the user's profile keywords, yet the behavioral signal correctly captures that users who cook similar meals tend to enjoy this one.
             
             #### Case 2: Ghostly Green Brew
             - **User ID (AuthorId)**: `293001` | **Recipe ID (RecipeId)**: `188331`
@@ -131,8 +131,8 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) was success
             - Collaborative-SVD Rank: `15` / 101
             - **Hybrid Rank**: `1` / 101 (Successfully Recommended in #1 spot!)
             - **Scores**:
-            - CF Raw Score: `4.7778` | Content Similarity: `0.4107` | Blended Hybrid Score: `0.8598`
-            - **Culinary / Behavior Diagnosis**: Success driven primarily by content semantics (content rank #1, similarity 0.4107). The CF signal was weaker (rank #15, score 4.7778), but the recipe's ingredient and keyword space closely mirrors the user's historical taste profile. The content component (40% weight) was sufficient to pull the hybrid score above the candidate pool.
+            - CF Raw Score: `4.7778` | Content Similarity: `0.4107` | Blended Hybrid Score: `0.8599`
+            - **Culinary / Behavior Diagnosis**: Success driven primarily by content semantics (content rank #1, similarity 0.4107). 'Ghostly Green Brew' is a Halloween-themed drink made from lime sherbet and ginger ale — a category (festive, cold beverages) very consistent with the content keywords in this user's taste profile. The relatively weaker CF signal (rank #15) makes sense: themed drinks are a niche interaction category in the dataset, so fewer behavioral neighbors have rated exactly this recipe. However, its ingredient and keyword representation in SVD space strongly mirrors the user's historical preferences, confirming that content-based embeddings capture culinary occasion context effectively.
             
             #### Case 3: Kittencal's Spinach &amp; Four-Cheese Manicotti (Vegetarian)
             - **User ID (AuthorId)**: `135887` | **Recipe ID (RecipeId)**: `72308`
@@ -144,7 +144,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) was success
             - **Hybrid Rank**: `1` / 101 (Successfully Recommended in #1 spot!)
             - **Scores**:
             - CF Raw Score: `4.1237` | Content Similarity: `0.2461` | Blended Hybrid Score: `0.7631`
-            - **Culinary / Behavior Diagnosis**: Success driven primarily by the collaborative signal (CF rank #2, raw score 4.1237). The content similarity was moderate (0.2461, rank #47), suggesting the recipe shares behavioral fans with items this user liked, even if its ingredient keywords are not an exact profile match. The hybrid blend (α=0.6 toward CF) correctly up-ranked it.
+            - **Culinary / Behavior Diagnosis**: Success driven primarily by the collaborative signal (CF rank #2). Kittencal's Spinach and Four-Cheese Manicotti is a classic Italian comfort dish from one of Food.com's most prolific recipe creators (Kittencal). This author's recipes share a dense behavioral cluster — users who rate one of Kittencal's dishes tend to rate many others highly. The CF model captures this intra-author user cluster effectively. Despite low content similarity (rank #47, since 'manicotti' and 'spinach' may not dominate this user's ingredient keywords), the model correctly surfaces it via behavioral co-rating patterns.
             
             #### Case 4: Yummy Baked Potato Skins
             - **User ID (AuthorId)**: `135887` | **Recipe ID (RecipeId)**: `43908`
@@ -156,7 +156,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) was success
             - **Hybrid Rank**: `1` / 101 (Successfully Recommended in #1 spot!)
             - **Scores**:
             - CF Raw Score: `4.0736` | Content Similarity: `0.4993` | Blended Hybrid Score: `0.7212`
-            - **Culinary / Behavior Diagnosis**: Success driven primarily by content semantics (content rank #1, similarity 0.4993). The CF signal was weaker (rank #14, score 4.0736), but the recipe's ingredient and keyword space closely mirrors the user's historical taste profile. The content component (40% weight) was sufficient to pull the hybrid score above the candidate pool.
+            - **Culinary / Behavior Diagnosis**: Convergent success: both content (rank #1) and popularity (rank #1) agree. Baked Potato Skins is a universally liked party appetizer with very common ingredient keywords (potato, cheddar, bacon, sour cream) that map strongly to most users' culinary vocabulary. The extremely high content similarity (0.4993) shows the SVD content space correctly identifies this as a good match for the user's ingredient profile. Even the CF signal is moderate (rank #14), likely because baked potato skins have broad cross-audience appeal rather than being a niche behavioral cluster signal. The hybrid model combining all three signals produces a clean top-1 result.
             
             #### Case 5: Marshall Field's Chicken Salad (With Sandwich Variations)
             - **User ID (AuthorId)**: `135887` | **Recipe ID (RecipeId)**: `115767`
@@ -168,7 +168,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) was success
             - **Hybrid Rank**: `1` / 101 (Successfully Recommended in #1 spot!)
             - **Scores**:
             - CF Raw Score: `4.0903` | Content Similarity: `0.3227` | Blended Hybrid Score: `0.8833`
-            - **Culinary / Behavior Diagnosis**: Success driven primarily by the collaborative signal (CF rank #1, raw score 4.0903). The content similarity was moderate (0.3227, rank #16), suggesting the recipe shares behavioral fans with items this user liked, even if its ingredient keywords are not an exact profile match. The hybrid blend (α=0.6 toward CF) correctly up-ranked it.
+            - **Culinary / Behavior Diagnosis**: Success driven primarily by the collaborative signal (CF rank #1). Marshall Field's Chicken Salad is a classic American lunch recipe with a recognizable culinary archetype — poached chicken, mayonnaise, celery. The user's behavioral neighborhood has strong co-rating patterns with chicken salad recipes, and this specific recipe is a well-reviewed representative of that category. The content similarity is moderate (rank #16), suggesting the user's taste profile keywords are slightly broader than the specific ingredient set, but the behavioral signal accurately predicts the match.
             
 
 ### B. Failure Cases (Low Rank)
@@ -185,7 +185,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) failed to b
         - **Hybrid Rank**: `85` / 101 (Failed to rank in Top 50!)
         - **Scores**:
         - CF Raw Score: `4.4545` | Content Similarity: `0.0621` | Blended Hybrid Score: `0.1649`
-        - **Culinary / Behavior Diagnosis**: Double-signal failure: both the collaborative model (rank #66) and the content model (similarity 0.0621, rank #86) score this recipe poorly for this user. The recipe likely represents a taste excursion outside the user's established culinary profile — neither their behavioral neighbors nor their ingredient history anticipate this preference. A serendipity or novelty component would be needed to surface it.
+        - **Culinary / Behavior Diagnosis**: Double-signal failure for Southern Cinnamon Sugared Pecans. Despite this user giving it a 5-star rating, both the CF model (rank #66) and the content model (similarity 0.0621, rank #86) score it poorly. Cinnamon sugared pecans is a niche confectionery snack — a category almost entirely absent from this user's interaction history, which skews toward savory main dishes. Neither the user's behavioral neighbors nor their ingredient keyword profile contains significant exposure to nut-based sweets, meaning this represents genuine serendipitous discovery that neither model architecture is designed to surface. A 'novelty or exploration' ranking layer would be needed.
         
         #### Case 2: Pete's Scratch Pancakes
         - **User ID (AuthorId)**: `1443141` | **Recipe ID (RecipeId)**: `5170`
@@ -197,7 +197,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) failed to b
         - **Hybrid Rank**: `101` / 101 (Failed to rank in Top 50!)
         - **Scores**:
         - CF Raw Score: `4.4480` | Content Similarity: `0.2297` | Blended Hybrid Score: `0.2610`
-        - **Culinary / Behavior Diagnosis**: The content signal shows moderate relevance (rank #21, similarity 0.2297), but the collaborative signal fails badly (rank #101, raw score 4.4480). This recipe lacks sufficient rating density from behavioral neighbors in the training set — a sparse-CF failure. Boosting the content weight (increasing 1−α) for users with sparse collaborative coverage would mitigate this.
+        - **Culinary / Behavior Diagnosis**: Sparse-CF failure for Pete's Scratch Pancakes. The content model shows moderate relevance (rank #21, similarity 0.2297) — pancake ingredients like flour, eggs, and butter do appear in this user's broader culinary vocabulary. However, the collaborative signal collapses completely (rank #101, last place). The likely explanation is that this specific recipe, despite being a classic, has an interaction density profile in the 5-core training set that does not co-occur with the items this user rated. In other words: the users who rated this pancake recipe are not the same cluster of users who rated the recipes in this user's history. Adaptive alpha blending — increasing the content weight (1-alpha) when CF co-occurrence density is low — would prevent this total failure.
         
         #### Case 3: Hummus
         - **User ID (AuthorId)**: `394144` | **Recipe ID (RecipeId)**: `11424`
@@ -209,7 +209,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) failed to b
         - **Hybrid Rank**: `96` / 101 (Failed to rank in Top 50!)
         - **Scores**:
         - CF Raw Score: `4.8889` | Content Similarity: `0.0509` | Blended Hybrid Score: `0.4922`
-        - **Culinary / Behavior Diagnosis**: Double-signal failure: both the collaborative model (rank #71) and the content model (similarity 0.0509, rank #99) score this recipe poorly for this user. The recipe likely represents a taste excursion outside the user's established culinary profile — neither their behavioral neighbors nor their ingredient history anticipate this preference. A serendipity or novelty component would be needed to surface it.
+        - **Culinary / Behavior Diagnosis**: Double-signal failure for Hummus. Both CF (rank #71) and content (similarity 0.0509, rank #99) fail. Hummus is a Middle Eastern staple with ingredients (chickpeas, tahini, lemon, garlic) that are extremely sparse in the Food.com dataset's vocabulary — the platform leans heavily toward American comfort food. This means the TF-IDF/SVD content space assigns a near-zero vector to hummus-style recipes, making content-based retrieval structurally blind to this entire food category. The CF signal is also weak, as hummus consumers form a small, insular behavioral cluster on this predominantly American-cooking platform. This is a dataset coverage failure, not a model failure.
         
         #### Case 4: Diet Soup
         - **User ID (AuthorId)**: `498829` | **Recipe ID (RecipeId)**: `21892`
@@ -221,7 +221,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) failed to b
         - **Hybrid Rank**: `67` / 101 (Failed to rank in Top 50!)
         - **Scores**:
         - CF Raw Score: `4.9615` | Content Similarity: `0.1997` | Blended Hybrid Score: `0.5007`
-        - **Culinary / Behavior Diagnosis**: Both signals are weak for this pair (CF rank #96, content rank #49). The hybrid score places it at rank #67/101 despite a 5.0-star rating. This is consistent with a sparse-interaction cold-start edge case where the user has explored a recipe category underrepresented in their training history, making the failure hard to avoid without explicit user-declared preference signals.
+        - **Culinary / Behavior Diagnosis**: Both signals weak for Diet Soup. This is a cold-start edge case: the user has explored a low-calorie, diet-oriented recipe category that is structurally underrepresented in their training history. The CF model (rank #96) cannot find a strong behavioral neighborhood because diet soup consumers have distinct interaction patterns from the broader population. The content model (rank #49) is moderate — soup ingredients partially overlap with the user's profile — but not enough to overcome the CF failure. Without explicit user-declared dietary preference signals (e.g. 'I am on a diet'), neither model can reliably surface this category.
         
         #### Case 5: Pumpkin Dog Cookies
         - **User ID (AuthorId)**: `498829` | **Recipe ID (RecipeId)**: `133062`
@@ -233,7 +233,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) failed to b
         - **Hybrid Rank**: `93` / 101 (Failed to rank in Top 50!)
         - **Scores**:
         - CF Raw Score: `4.9615` | Content Similarity: `0.0743` | Blended Hybrid Score: `0.4325`
-        - **Culinary / Behavior Diagnosis**: Double-signal failure: both the collaborative model (rank #61) and the content model (similarity 0.0743, rank #97) score this recipe poorly for this user. The recipe likely represents a taste excursion outside the user's established culinary profile — neither their behavioral neighbors nor their ingredient history anticipate this preference. A serendipity or novelty component would be needed to surface it.
+        - **Culinary / Behavior Diagnosis**: Double-signal failure for Pumpkin Dog Cookies. This is the most structurally interesting failure in the dataset. This recipe is pet food — cookies intended for dogs, not humans — yet a human user rated it 5 stars (possibly because they baked it for their pet). Neither the CF model (rank #61) nor the content model (similarity 0.0743, rank #97) can handle this. From the model's perspective, pumpkin dog cookies share surface-level ingredient keywords (pumpkin, oats, flour) with human recipes but belong to a semantically distinct consumption context. The SVD content space collapses both human and pet food into the same ingredient-keyword vector space, creating a systematic representation failure for non-human recipes in the catalog.
         
 
 ### C. Failure Cases (Disliked Recommended)
@@ -250,7 +250,7 @@ These are cases where a user actually disliked a recipe in the test set (rating 
         - **Hybrid Rank**: `1` / 101 (Incorrectly Recommended in Top 5!)
         - **Scores**:
         - CF Raw Score: `4.4585` | Content Similarity: `0.1895` | Blended Hybrid Score: `0.7920`
-        - **Culinary / Behavior Diagnosis**: Collaborative false positive (CF rank #1, score 4.4585): the user's behavioral neighbors strongly liked this recipe, but this individual user did not. This is a classic CF overfitting case — the model captures the majority signal from similar users but misses the personal negative preference. Content similarity was modest (0.1895, rank #33), so the hybrid's α=0.6 CF weight carried the false recommendation forward.
+        - **Culinary / Behavior Diagnosis**: Collaborative false positive for The Best Brownies. The user's behavioral neighborhood strongly liked this recipe (CF rank #1), yet this individual user rated it 2/5. This is a textbook CF majority-vote failure: the model captures the aggregate preference signal from similar users but cannot model individual idiosyncratic dislikes. In the recipe domain, this could reflect a personal dislike of chocolate, a dietary restriction, or a bad baking experience with this specific recipe. Without explicit negative feedback signals (e.g. thumbs-down or 'do not recommend'), the CF model has no mechanism to learn individual negative preferences that deviate from the neighborhood majority.
         
         #### Case 2: Kittencal's Strawberry Shortcake
         - **User ID (AuthorId)**: `135887` | **Recipe ID (RecipeId)**: `223104`
@@ -262,7 +262,7 @@ These are cases where a user actually disliked a recipe in the test set (rating 
         - **Hybrid Rank**: `5` / 101 (Incorrectly Recommended in Top 5!)
         - **Scores**:
         - CF Raw Score: `4.0920` | Content Similarity: `0.3186` | Blended Hybrid Score: `0.5070`
-        - **Culinary / Behavior Diagnosis**: Mixed-signal false positive: hybrid rank #5 despite the user rating it 2.0/5. CF score 4.0920 (rank #5) and content similarity 0.3186 (rank #18) both contribute a moderate positive signal. The combination crosses the recommendation threshold even though individually neither signal is dominant. Adding an explicit negative feedback mechanism or a dislike-aware regularization term would suppress these cases.
+        - **Culinary / Behavior Diagnosis**: Mixed-signal false positive for Kittencal's Strawberry Shortcake. Both CF (rank #5, score 4.0920) and content (rank #18, similarity 0.3186) contribute moderate positive signals, pushing the hybrid score above the recommendation threshold despite the user rating it 2/5. The likely explanation is that this user is a frequent Kittencal recipe rater — the same intra-author behavioral cluster that drove correct recommendations in the strong cases — but has a specific dislike for strawberry desserts or shortcake texture. The model cannot distinguish between 'I interact with this author's recipes often' and 'I enjoy all of this author's recipes'. An author-diversity penalty or negative preference regularization would help.
         
         #### Case 3: Magnolia Bakery Vanilla Cupcakes
         - **User ID (AuthorId)**: `1164770` | **Recipe ID (RecipeId)**: `133767`
@@ -274,7 +274,7 @@ These are cases where a user actually disliked a recipe in the test set (rating 
         - **Hybrid Rank**: `5` / 101 (Incorrectly Recommended in Top 5!)
         - **Scores**:
         - CF Raw Score: `4.2501` | Content Similarity: `0.3378` | Blended Hybrid Score: `0.5653`
-        - **Culinary / Behavior Diagnosis**: Content false positive (content rank #3, similarity 0.3378): the recipe's ingredient and keyword profile closely matches the user's taste vector, but the user disliked it in practice. The CF signal was weaker (rank #36), suggesting the broader user community also doesn't strongly favor this recipe. The content component (40% weight) over-contributed to a spurious recommendation.
+        - **Culinary / Behavior Diagnosis**: Content false positive for Magnolia Bakery Vanilla Cupcakes. The content model (rank #3, similarity 0.3378) strongly over-contributes. The user's taste profile vector contains vanilla, butter, and sugar keywords from other baked goods they enjoyed, and these keywords overlap heavily with vanilla cupcakes. However, the user rated this recipe 1/5 — a strong dislike. This reveals a fundamental limitation of TF-IDF/SVD content representations: they capture ingredient co-occurrence but cannot capture preparation complexity, texture expectations, or style mismatches. This user may enjoy simple home baking but found Magnolia Bakery-style frosting too sweet or the recipe too complex.
         
         #### Case 4: Crock Pot Cream Cheese Chicken
         - **User ID (AuthorId)**: `722619` | **Recipe ID (RecipeId)**: `12458`
@@ -286,7 +286,7 @@ These are cases where a user actually disliked a recipe in the test set (rating 
         - **Hybrid Rank**: `1` / 101 (Incorrectly Recommended in Top 5!)
         - **Scores**:
         - CF Raw Score: `4.5561` | Content Similarity: `0.3775` | Blended Hybrid Score: `0.9434`
-        - **Culinary / Behavior Diagnosis**: Strong false positive: both CF (rank #2, score 4.5561) and content (rank #3, similarity 0.3775) agree this is a good recommendation, yet the user disliked it. This points to a latent preference dimension not captured by either signal — possibly a specific texture, technique, or ingredient sub-component (e.g. an allergen, a disliked spice) that the SVD embedding collapses into a broader positive cluster.
+        - **Culinary / Behavior Diagnosis**: Strong false positive for Crock Pot Cream Cheese Chicken. Both CF (rank #2, score 4.5561) and content (rank #3, similarity 0.3775) produce very high scores — yet the user gave it a 0/5. This is a worst-case scenario: both signals converge on a recommendation that the user actively dislikes. One plausible explanation is a specific ingredient allergy or strong aversion — cream cheese is a polarizing ingredient that some users avoid entirely due to lactose intolerance or personal taste. The SVD latent space collapses cream cheese into a broader 'creamy, savory, slow-cooked' cluster that is generally popular, but cannot detect that for this specific user, cream cheese is a disqualifying ingredient. Adding explicit ingredient-level dietary filters would prevent this type of failure.
         
         #### Case 5: Japanese Mum's Chicken
         - **User ID (AuthorId)**: `2148404` | **Recipe ID (RecipeId)**: `68955`
@@ -298,7 +298,7 @@ These are cases where a user actually disliked a recipe in the test set (rating 
         - **Hybrid Rank**: `1` / 101 (Incorrectly Recommended in Top 5!)
         - **Scores**:
         - CF Raw Score: `3.5162` | Content Similarity: `0.2527` | Blended Hybrid Score: `0.9103`
-        - **Culinary / Behavior Diagnosis**: Strong false positive: both CF (rank #1, score 3.5162) and content (rank #4, similarity 0.2527) agree this is a good recommendation, yet the user disliked it. This points to a latent preference dimension not captured by either signal — possibly a specific texture, technique, or ingredient sub-component (e.g. an allergen, a disliked spice) that the SVD embedding collapses into a broader positive cluster.
+        - **Culinary / Behavior Diagnosis**: Strong false positive for Japanese Mum's Chicken. Both CF (rank #1) and content (rank #4, similarity 0.2527) agree on a strong recommendation, yet the user rated it 0/5. Japanese Mum's Chicken is a teriyaki-style dish with soy sauce, ginger, and sesame. If this user has a dislike or allergy to soy-based sauces or Japanese-style seasoning profiles, neither the CF behavioral signal nor the content keyword representation can detect this. The CF model sees 'users similar to you love this Japanese chicken dish' without knowing this user specifically avoids this flavor profile. This failure type requires explicit cuisine-category blacklist preferences that go beyond the implicit rating signal.
         
 
 ---
@@ -369,3 +369,12 @@ python src\features\run_recommendation_experiments.py --reviews data\processed\r
 
 python src\features\generate_week10_reports.py --out-dir artifacts\week10 --report-path reports\Week10_recommendation_explanation.md
 ```
+
+---
+
+## 8. Ethics and Access Note
+
+- **Data Source**: This project uses the publicly released Food.com Recipes and Reviews dataset, originally published on Kaggle by Shuyang Li (2019). The dataset contains recipes and user reviews scraped from the Food.com platform and made available under public research terms.
+- **Why We Are Allowed to Use It**: The dataset is a public, third-party research release available on Kaggle with no access restrictions. Food.com's recipe content and aggregate review statistics are publicly visible without authentication. No private or restricted data, no API scraping, and no bypassing of platform access controls were involved.
+- **Personal Data Risks**: The dataset contains user-generated content (review text and numeric ratings) associated with numeric Author IDs. Although names are not included, it is theoretically possible that a determined actor could cross-reference the AuthorId with other public Food.com activity to re-identify specific users.
+- **Risk Mitigation**: We use only the numeric `AuthorId`, `RecipeId`, `Rating`, and `DateSubmitted` columns for model training and evaluation. No review text, user display names, or any other identifying strings are stored, processed, or included in our artifacts. Our pipeline does not output any raw user data; only aggregated model artifacts (SVD factor matrices, Bayesian score tables) and anonymized evaluation metrics are saved.
