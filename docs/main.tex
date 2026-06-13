@@ -1306,11 +1306,29 @@ The offline evaluation metrics confirmed that collaborative behavioral data is h
 The Hybrid Recommender (blending 60\% Collaborative SVD and 40\% Content SVD) achieved the highest overall performance with a Hit Rate@10 of 22.50\% and an NDCG@10 of 12.38\%. This proves that incorporating content SVD embeddings serves as a regularizer, refining collaborative user preferences with ingredient-level text semantic alignment.
 
 \subsection{Error Analysis Insights and Model Diagnosis}
-The qualitative error analysis exposed the structural strengths and limitations of the recommendation models:
+The qualitative error analysis exposed the structural strengths and limitations of the recommendation models through recipe-specific, domain-aware diagnosis of 15 individual cases (5 strong successes, 5 low-rank failures, 5 disliked-recommended false positives).
+
+\textbf{Key findings:}
 \begin{itemize}
-    \item \textbf{Convergence of Signals:} Strong successes occurred when both content SVD similarity and collaborative neighbor patterns converged (e.g., ranking a user's highly-rated scrambled eggs recipe at \#1).
-    \item \textbf{Behavioral Sparsity Failure:} Collaborative filtering failed on recipes with low interaction density in the training set or when the user liked items outside their typical ingredient profile. Increasing the content weight for users with sparse histories can mitigate this.
-    \item \textbf{Popularity and Context False Positives:} Disliked recommendations (false positives) were driven by high popularity bias or ingredient category matching, showing that models occasionally miss specific personal dislikes (such as allergens or texture preferences) not captured in general semantics.
+    \item \textbf{Convergence of Signals:} Strong successes occurred when both content SVD similarity and collaborative neighbor patterns converged. For example, Baked Potato Skins achieved a top-1 hybrid rank through convergent popularity, content (similarity 0.4993), and CF signals --- its universally common ingredients (potato, cheddar, bacon) mapped strongly to most users' culinary vocabulary.
+
+    \item \textbf{Intra-Author Behavioral Clusters:} Recipes from prolific Food.com contributors (e.g., Kittencal) form dense behavioral clusters: users who rate one dish from a particular author tend to rate many others from the same author highly. The CF model captures this effectively in strong cases (Kittencal's Spinach Manicotti, CF rank \#2), but the same pattern creates false positives when the user dislikes a specific recipe from that author (Kittencal's Strawberry Shortcake, rated 2/5 despite CF rank \#5).
+
+    \item \textbf{Dataset Coverage Gaps:} The Food.com dataset skews heavily toward American comfort food. Recipes from underrepresented culinary traditions --- such as hummus (Middle Eastern) or Japanese teriyaki --- have sparse TF-IDF/SVD representations, causing both content similarity and CF signals to fail structurally. This is a dataset coverage limitation, not a model architecture failure.
+
+    \item \textbf{Semantic Category Confusion:} The most structurally interesting failure involved Pumpkin Dog Cookies --- a pet food recipe rated 5 stars by a human user (who presumably baked it for their dog). Neither CF nor content models can distinguish human-food from pet-food recipes because the SVD content space collapses both into the same ingredient-keyword vector space (pumpkin, oats, flour).
+
+    \item \textbf{Implicit Allergen Blindness:} Strong false positives such as Crock Pot Cream Cheese Chicken (CF rank \#2, content rank \#3, yet rated 0/5) reveal that the SVD latent space collapses polarizing ingredients (e.g., cream cheese) into broader positive clusters (``creamy, savory, slow-cooked''), unable to detect that a specific user avoids that ingredient entirely due to intolerance or personal aversion.
+\end{itemize}
+
+To ensure reproducibility, all manual diagnoses are stored in a structured JSON file (\texttt{data/manual\_diagnoses.json}) keyed by \texttt{RecipeId}, which the report generation script (\texttt{generate\_week10\_reports.py}) injects automatically into the Markdown report. This design preserves full pipeline automation while allowing domain-expert interpretation to override generic template text.
+
+\subsection{Ethics and Access Note}
+\begin{itemize}
+    \item \textbf{Data Source:} This project uses the publicly released Food.com Recipes and Reviews dataset, originally published on Kaggle by Shuyang Li (2019). The dataset contains recipes and user reviews scraped from the Food.com platform and made available under public research terms (CC0: Public Domain).
+    \item \textbf{Usage Justification:} The dataset is a public, third-party research release available on Kaggle with no access restrictions. No private or restricted data, no API scraping, and no bypassing of platform access controls were involved in our use.
+    \item \textbf{Personal Data Risks:} The dataset contains user-generated content (review text and numeric ratings) associated with numeric Author IDs. Although display names are not used in our pipeline, it is theoretically possible that a determined actor could cross-reference the AuthorId with other public Food.com activity to re-identify specific users.
+    \item \textbf{Risk Mitigation:} We use only the numeric \texttt{AuthorId}, \texttt{RecipeId}, \texttt{Rating}, and \texttt{DateSubmitted} columns for model training and evaluation. No review text, user display names, or any other identifying strings are stored, processed, or included in our artifacts. Our pipeline outputs only aggregated model artifacts (SVD factor matrices, Bayesian score tables) and anonymized evaluation metrics.
 \end{itemize}
 
 \subsection{Project Nature and Next Steps}
@@ -1378,6 +1396,7 @@ recipe-recommendation-system/
 │   └── num_pca_features.npy
 ├── data/
 │   ├── interim/
+│   ├── manual_diagnoses.json
 │   └── processed/
 │       ├── recipes_processed.csv
 │       └── reviews_processed.csv
