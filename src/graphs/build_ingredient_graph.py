@@ -14,20 +14,12 @@ from collections import Counter
 from itertools import combinations
 import json
 import logging
-import os
 from pathlib import Path
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Set, Tuple
 
 import numpy as np
 import pandas as pd
-
-_MPLCONFIGDIR = Path(os.environ.get("MPLCONFIGDIR", "/tmp/matplotlib-cache"))
-_MPLCONFIGDIR.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("MPLCONFIGDIR", str(_MPLCONFIGDIR))
-_XDG_CACHE_HOME = Path(os.environ.get("XDG_CACHE_HOME", "/tmp/codex-cache"))
-_XDG_CACHE_HOME.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("XDG_CACHE_HOME", str(_XDG_CACHE_HOME))
 
 import matplotlib
 
