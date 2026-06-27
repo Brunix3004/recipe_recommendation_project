@@ -11,6 +11,7 @@
 \usepackage{xcolor}
 \usepackage{float}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{enumitem}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
@@ -968,6 +969,466 @@ The relatively low silhouette scores demonstrate that recipe spaces are continuo
 
 Future work will compare these results with density-based methods such as DBSCAN or HDBSCAN to better model irregular culinary manifolds and detect noise recipes or outliers.
 
+\section{Recommendation and Ranking Engine}
+
+\subsection{Problem Framing and Project Nature}
+In the trajectory of the course, we define the mathematical nature of our task as a \textbf{hybrid recommendation and ranking engine}. 
+While we predict latent ratings and similarities to score recipes, the operational goal is not to predict individual rating scalars, but to generate a personalized ranked list of suggestions.
+Furthermore, the unsupervised recipe clusters discovered in previous milestones can act as structured candidate pools (e.g., separating healthy meals from rich desserts), demonstrating how \textbf{segmentation feeds the ranking layer}. 
+
+\subsection{Data Alignment and 5-Core Preprocessing}
+Due to the extreme sparsity of the Food.com user-item interaction matrix ($99.998\%$), we apply a recursive \textbf{5-core filter} (retaining only users and recipes with at least 5 interactions). This reduces the matrix sparsity to $99.935\%$, stabilizing collaborative representations and making offline evaluation computationally feasible. 
+To avoid data leakage, we perform a chronological 80/20 train/test split per user based on submission timestamps, training models on past interactions and predicting future reviews.
+The resulting datasets are:
+\begin{itemize}
+    \item \textbf{Total 5-Core reviews:} 719,687 interactions.
+    \item \textbf{Active Users:} 21,792.
+    \item \textbf{Active Recipes:} 50,835.
+    \item \textbf{Training Set (80\%):} 567,342 reviews.
+    \item \textbf{Testing Set (20\%):} 152,345 reviews.
+\end{itemize}
+
+\subsection{Description of Recommendation Systems}
+
+\begin{enumerate}
+    \item \textbf{Popularity Baseline (Bayesian Average):} A non-personalized baseline that ranks recipes by their average rating smoothed towards the global average:
+    \[ \text{Score} = \frac{v}{v+m} \cdot R + \frac{m}{v+m} \cdot C \]
+    where $v$ is the review count, $R$ is the average rating, $C$ is the global mean rating, and $m=10.0$ is the smoothing constant. It prevents niche recipes with single ratings from outranking highly popular dishes.
+    
+    \item \textbf{Content-Based SVD Baseline:} A personalized content-based model. For each user, we average the 200-dimensional Truncated SVD content vectors (from Week 5) of the recipes they rated $\ge 4.0$ in the training set to construct a taste profile. Cosine similarity is computed between the user profile and candidate recipe vectors.
+    
+    \item \textbf{Collaborative SVD (Stronger System):} We construct a sparse user-item interaction matrix of training ratings, subtract user means (mean-centering), and compute sparse SVD using $K=50$ factors. Latent user and recipe factors are scaled by $\Sigma^{0.5}$, and predictions are reconstructed as:
+    \[ \hat{R}_{ui} = \text{user\_mean}_u + \vec{u}_{\text{factors}} \cdot \vec{i}_{\text{factors}} \]
+    
+    \item \textbf{Hybrid Recommender (Advanced System):} Blends Collaborative SVD and Content SVD scores. Since they operate on different scales, scores are Min-Max normalized to $[0, 1]$ within the user's candidate pool, and blended using $\alpha = 0.6$:
+    \[ \text{Score}_{\text{hybrid}} = \alpha \cdot \text{Score}_{\text{CF\_norm}} + (1-\alpha) \cdot \text{Score}_{\text{Content\_norm}} \]
+\end{enumerate}
+
+\subsection{Offline Evaluation Report}
+To evaluate the models offline, we use the standard \textbf{Sampled Metrics (k-negative) protocol}. For each test rating, the target recipe is mixed with 100 randomly sampled un-interacted recipes (negatives). We rank the 101 candidates and evaluate metrics over a representative sample of 2,000 test users. Table~\ref{tab:recommendation_metrics} summarizes the performance.
+
+\begin{table}[ht]
+\centering
+\caption{Offline Recommendation and Ranking Performance Metrics}
+\label{tab:recommendation_metrics}
+\begin{tabular}{lccccc}
+\hline
+\textbf{Recommendation Model} & \textbf{HR@5} & \textbf{HR@10} & \textbf{NDCG@5} & \textbf{NDCG@10} & \textbf{MRR} \\ \hline
+Popularity Baseline (Bayesian) & 0.0835 & 0.1373 & 0.0544 & 0.0717 & 0.0726 \\
+Content-Based SVD (Baseline) & 0.1159 & 0.1999 & 0.0715 & 0.0984 & 0.0922 \\
+Collaborative SVD (Stronger) & 0.1418 & 0.2074 & 0.0977 & 0.1188 & 0.1108 \\
+Hybrid Recommender ($\alpha=0.6$) & \textbf{0.1440} & \textbf{0.2250} & \textbf{0.0978} & \textbf{0.1238} & \textbf{0.1154} \\ \hline
+\end{tabular}
+\end{table}
+
+The Collaborative SVD model significantly outperforms the non-personalized popularity baseline, confirming the predictive power of behavioral interaction data. The Hybrid Recommender achieves the best overall performance, demonstrating that combining behavioral profiles and SVD semantic content embeddings regularizes and improves personalized recommendation.
+
+\subsection{Error Analysis and Diagnostics}
+
+\begin{itemize}
+    \item \textbf{Successful Cases (Strong Alignment):} The hybrid model successfully ranks highly rated test items in the \#1 position when both collaborative and content signals converge. For example, for User \texttt{178117}, the recipe \textit{"Jim's Microwave Scrambled Eggs"} (rated 5.0) was ranked \#1 due to strong collaborative alignment (CF rank \#2) and content keyword alignment (content rank \#25).
+    
+    \item \textbf{Failure Cases (Low Rank):} Target items rated 5.0 are ranked poorly (rank $\ge 50$) when they represent taste excursions outside the user's typical ingredient history and have low rating density in the training set. For instance, User \texttt{1443141} rated \textit{"Southern Cinnamon Sugared Pecans"} 5.0, but the hybrid model ranked it \#85 due to extremely low content similarity ($0.0621$) and sparse collaborative rating density.
+    
+    \item \textbf{Failure Cases (Disliked Recommended):} False positives occur when a recipe has very high popularity or strong category match, but the user personally disliked it (rated 1.0 or 2.0). For example, User \texttt{135887} rated \textit{"Kittencal's Strawberry Shortcake"} 2.0, but the hybrid model recommended it in the top 5 (Rank \#5) due to its high collaborative rating density from neighbors and strong matching ingredient profile.
+\end{itemize}
+
+\section{Graph Analytics and Centrality Report}
+
+\subsection{Objective and Relationship to the Recommendation System}
+This deliverable formalizes a domain graph for the Food.com recipe corpus and uses it for structural graph analysis. It complements, but does not replace, the Week 10 recommender. The recommender answers: ``what recipes should this user try?'' The graph answers a different question: ``which ingredients are structurally central in the recipe corpus?''
+
+This distinction matters because the recommendation engine uses user behavior and recipe similarity to rank recipes, while the graph describes dataset-level ingredient relationships. The graph can therefore support ingredient exploration, cluster interpretation, and future graph-aware recommendation features without being treated as a personalized recommendation model by itself.
+
+\subsection{Formal Graph Definition}
+The graph is the \textbf{Ingredient-Ingredient Co-occurrence Graph}. Each node represents one normalized ingredient token extracted from \texttt{RecipeIngredientParts}. An undirected edge connects two ingredients when they co-occur in the same recipe. The raw edge weight is the number of distinct recipes in which the ingredient pair co-occurs.
+
+The graph is undirected because co-occurrence inside a recipe has no natural direction. Each recipe contributes at most one count to each ingredient node and at most one count to each unordered ingredient pair, after within-recipe deduplication. The final graph uses a minimum node threshold of 50 recipes and a minimum edge threshold of 20 co-occurring recipes.
+
+This graph is meaningful because it captures ingredient relationship structure behind the content-based features used in earlier milestones. It reveals the pantry-staple backbone of the corpus, identifies bridge ingredients that connect ingredient neighborhoods, and provides a structural view of the culinary catalog.
+
+\subsection{Graph Construction Pipeline}
+The graph is built only from \texttt{data/processed/recipes\_processed.csv}. The pipeline parses \texttt{RecipeIngredientParts}, normalizes ingredient strings, deduplicates ingredients within each recipe, generates unordered ingredient pairs, applies node and edge filters, and persists the graph as CSV, GraphML, JSON, figures, and a Markdown report.
+
+\begin{verbatim}
+python src/graphs/build_ingredient_graph.py
+--recipes data/processed/recipes_processed.csv
+--out artifacts/week12/ingredient_graph
+--figures reports/figures
+--report reports/week12_graph_analytics_report.md
+--min-node-recipe-count 50
+--min-edge-recipe-count 20
+--sensitivity-edge-thresholds 5 10 20 50
+\end{verbatim}
+
+The graph construction intentionally excludes ratings, reviews, \texttt{AggregatedRating}, and \texttt{ReviewCount}. This keeps the graph reproducible from processed recipe ingredients and prevents interaction or popularity outcomes from leaking into the graph definition.
+
+\subsection{Graph Summary and Validity Checks}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lr}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Recipes processed & 522,517 \\
+Recipes with at least 1 valid ingredient & 520,298 \\
+Recipes with at least 2 valid ingredients & 511,496 \\
+Raw unique ingredients & 7,287 \\
+Retained ingredient nodes & 2,529 \\
+Raw unique ingredient pairs & 974,020 \\
+Retained edges & 88,757 \\
+Density & 0.0278 \\
+Sparsity & 0.9722 \\
+Connected components & 84 \\
+Largest component share & 0.9672 \\
+Isolated node count & 83 \\
+Isolated node share & 0.0328 \\
+Average degree & 70.1914 \\
+Average weighted degree & 11,243.9359 \\
+\bottomrule
+\end{tabular}
+\caption{Ingredient graph summary statistics.}
+\label{tab:ingredient_graph_summary}
+\end{table}
+
+The graph is sparse, which is expected for a thresholded ingredient network. The largest component contains 96.72\% of retained nodes, so most ingredients participate in a shared co-occurrence space. The 83 isolated nodes and smaller components are expected side effects of retaining ingredients by node frequency while also requiring strong co-occurrence edges. This confirms that the graph is valid but sensitive to edge-threshold choices.
+
+\subsection{Degree and Weighted Degree Analysis}
+Degree is the number of distinct ingredient neighbors. Weighted degree is the sum of co-occurrence counts across retained neighbors. Therefore, a high weighted degree ingredient is one that co-occurs frequently across the corpus, not necessarily one that is distinctive or recommended.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rlrrr}
+\toprule
+\textbf{Rank} & \textbf{Ingredient} & \textbf{Recipe Count} & \textbf{Degree} & \textbf{Weighted Degree} \\
+\midrule
+1 & salt & 190,464 & 2,222 & 1,610,641 \\
+2 & butter & 123,598 & 1,657 & 917,003 \\
+3 & sugar & 102,808 & 1,525 & 745,544 \\
+4 & onion & 86,321 & 1,632 & 740,749 \\
+5 & eggs & 80,436 & 1,251 & 621,655 \\
+6 & olive\_oil & 72,763 & 1,568 & 613,753 \\
+7 & water & 79,884 & 1,736 & 609,510 \\
+8 & garlic\_cloves & 58,612 & 1,476 & 540,324 \\
+9 & flour & 59,081 & 1,103 & 473,883 \\
+10 & milk & 58,800 & 1,077 & 423,340 \\
+\bottomrule
+\end{tabular}
+\caption{Top ingredients by raw weighted degree.}
+\label{tab:top_weighted_degree_graph}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_degree_distribution.png}
+        \caption{Ingredient graph degree distribution.}
+        \label{fig:ingredient_degree_distribution}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_weighted_degree_distribution.png}
+        \caption{Ingredient graph weighted degree distribution.}
+        \label{fig:ingredient_weighted_degree_distribution}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\textwidth]{figures/ingredient_graph_top_weighted_degree.png}
+    \caption{Top ingredients by raw weighted degree.}
+    \label{fig:ingredient_top_weighted_degree}
+\end{figure}
+
+The raw weighted-degree ranking is dominated by frequent pantry ingredients such as salt, butter, sugar, onion, eggs, water, flour, milk, garlic cloves, and olive oil. This is not a bug; it is the expected behavior of a raw co-occurrence graph.
+
+\subsection{PageRank and Centrality Analysis}
+PageRank models a random walk over the weighted ingredient network. Ingredients connected to other important ingredients receive higher centrality, and weighted PageRank uses raw co-occurrence counts as transition weights.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rlrrr}
+\toprule
+\textbf{Rank} & \textbf{Ingredient} & \textbf{Recipe Count} & \textbf{Weighted Degree} & \textbf{PageRank} \\
+\midrule
+1 & salt & 190,464 & 1,610,641 & 0.0594 \\
+2 & butter & 123,598 & 917,003 & 0.0297 \\
+3 & onion & 86,321 & 740,749 & 0.0265 \\
+4 & sugar & 102,808 & 745,544 & 0.0258 \\
+5 & olive\_oil & 72,763 & 613,753 & 0.0223 \\
+6 & water & 79,884 & 609,510 & 0.0210 \\
+7 & garlic\_cloves & 58,612 & 540,324 & 0.0189 \\
+8 & eggs & 80,436 & 621,655 & 0.0186 \\
+9 & flour & 59,081 & 473,883 & 0.0135 \\
+10 & milk & 58,800 & 423,340 & 0.0129 \\
+\bottomrule
+\end{tabular}
+\caption{Top ingredients by raw weighted PageRank.}
+\label{tab:top_pagerank_graph}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_top_pagerank.png}
+        \caption{Top ingredients by raw weighted PageRank.}
+        \label{fig:ingredient_top_pagerank}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_pagerank_vs_popularity.png}
+        \caption{Raw weighted PageRank versus ingredient popularity.}
+        \label{fig:ingredient_pagerank_vs_popularity}
+    \end{minipage}
+\end{figure}
+
+Raw PageRank remains strongly associated with ingredient popularity. Therefore, raw PageRank should be interpreted as corpus-level structural centrality, not ingredient quality, user preference, or personalized recommendation relevance.
+
+\subsection{Comparison: Graph Ranking vs Popularity Baseline}
+The popularity baseline is \texttt{recipe\_count}, or the number of distinct recipes containing an ingredient. The graph rankings compared against this baseline are weighted degree and weighted PageRank.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Graph Metric} & \textbf{Spearman $\rho$ with Popularity} & \textbf{Interpretation} \\
+\midrule
+Weighted degree & 0.9754 & Very high association \\
+Weighted PageRank & 0.9762 & Very high association \\
+\bottomrule
+\end{tabular}
+\caption{Correlation between raw graph centrality and ingredient popularity.}
+\label{tab:graph_popularity_correlation}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Metric} & \textbf{Top-10} & \textbf{Top-20} & \textbf{Top-50} & \textbf{Top-100} \\
+\midrule
+Weighted degree overlap & 10 / 10 & 19 / 20 & 48 / 50 & 95 / 100 \\
+Weighted PageRank overlap & 10 / 10 & 19 / 20 & 48 / 50 & 95 / 100 \\
+\bottomrule
+\end{tabular}
+\caption{Top-K overlap between raw popularity and raw graph rankings.}
+\label{tab:graph_popularity_overlap}
+\end{table}
+
+The high correlations and overlaps show that raw graph centrality is partially driven by ingredient popularity. This is an important finding rather than a failure: raw co-occurrence centrality identifies the pantry-staple backbone of Food.com.
+
+\subsection{Normalized Association Graph: Reducing Frequent-Ingredient Dominance}
+The initial raw co-occurrence graph was heavily dominated by frequent ingredients. To reduce this dominance, the graph was extended with normalized association weights while preserving the original raw co-occurrence graph as the baseline.
+
+\begin{align*}
+\text{Jaccard}(i,j) &= \frac{c_{ij}}{c_i + c_j - c_{ij}} \\[0.8em]
+\text{PMI}(i,j) &= \log\left(\frac{c_{ij} \times N}{c_i \times c_j}\right) \\[0.8em]
+\text{PPMI}(i,j) &= \max(\text{PMI}(i,j), 0)
+\end{align*}
+
+Here, $c_i$ is the number of recipes containing ingredient $i$, $c_j$ is the number of recipes containing ingredient $j$, $c_{ij}$ is the number of recipes containing both ingredients, and $N=511{,}496$ is the number of recipes with at least two valid ingredients.
+
+Raw PageRank answers: ``which ingredients are central because they frequently co-occur?'' Jaccard and PPMI PageRank answer: ``which ingredients remain central after discounting generic frequency?''
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rlrr}
+\toprule
+\textbf{Rank} & \textbf{Ingredient} & \textbf{Recipe Count} & \textbf{PPMI PageRank} \\
+\midrule
+1 & olive\_oil & 72,763 & 0.0095 \\
+2 & onion & 86,321 & 0.0091 \\
+3 & garlic\_cloves & 58,612 & 0.0090 \\
+4 & sugar & 102,808 & 0.0059 \\
+5 & salt & 190,464 & 0.0054 \\
+6 & water & 79,884 & 0.0050 \\
+7 & celery & 22,503 & 0.0047 \\
+8 & garlic & 34,901 & 0.0044 \\
+9 & parmesan\_cheese & 31,308 & 0.0043 \\
+10 & extra\_virgin\_olive\_oil & 17,068 & 0.0043 \\
+\bottomrule
+\end{tabular}
+\caption{Top ingredients by PPMI PageRank.}
+\label{tab:top_ppmi_pagerank_graph}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rlrr}
+\toprule
+\textbf{Rank} & \textbf{Ingredient} & \textbf{Recipe Count} & \textbf{Jaccard PageRank} \\
+\midrule
+1 & salt & 190,464 & 0.0132 \\
+2 & onion & 86,321 & 0.0094 \\
+3 & olive\_oil & 72,763 & 0.0091 \\
+4 & garlic\_cloves & 58,612 & 0.0083 \\
+5 & sugar & 102,808 & 0.0078 \\
+6 & butter & 123,598 & 0.0074 \\
+7 & water & 79,884 & 0.0068 \\
+8 & eggs & 80,436 & 0.0057 \\
+9 & pepper & 48,754 & 0.0054 \\
+10 & garlic & 34,901 & 0.0051 \\
+\bottomrule
+\end{tabular}
+\caption{Top ingredients by Jaccard PageRank.}
+\label{tab:top_jaccard_pagerank_graph}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_top_ppmi_pagerank.png}
+        \caption{Top ingredients by PPMI PageRank.}
+        \label{fig:ingredient_top_ppmi_pagerank}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_top_jaccard_pagerank.png}
+        \caption{Top ingredients by Jaccard PageRank.}
+        \label{fig:ingredient_top_jaccard_pagerank}
+    \end{minipage}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Ranking} & \textbf{Generic Top-10 Share} & \textbf{Generic Top-20 Share} & \textbf{Generic Top-50 Share} \\
+\midrule
+Popularity & 1.00 & 0.95 & 0.52 \\
+Weighted degree & 1.00 & 0.95 & 0.50 \\
+Weighted PageRank & 1.00 & 0.95 & 0.50 \\
+Jaccard weighted degree & 1.00 & 0.80 & 0.44 \\
+PPMI weighted degree & 0.50 & 0.25 & 0.24 \\
+Jaccard PageRank & 1.00 & 0.80 & 0.48 \\
+PPMI PageRank & 0.70 & 0.50 & 0.40 \\
+\bottomrule
+\end{tabular}
+\caption{Generic ingredient dominance across ranking methods.}
+\label{tab:generic_dominance_graph}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Metric} & \textbf{Spearman $\rho$ with Popularity} & \textbf{Generic Top-20 Share} \\
+\midrule
+Weighted degree & 0.9754 & 0.95 \\
+Weighted PageRank & 0.9762 & 0.95 \\
+Jaccard weighted degree & 0.9429 & 0.80 \\
+PPMI weighted degree & 0.9281 & 0.25 \\
+Jaccard PageRank & 0.9405 & 0.80 \\
+PPMI PageRank & 0.9249 & 0.50 \\
+\bottomrule
+\end{tabular}
+\caption{Raw versus normalized centrality diagnostics.}
+\label{tab:raw_vs_normalized_graph}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_generic_dominance_comparison.png}
+        \caption{Generic ingredient share in top-20 rankings.}
+        \label{fig:ingredient_generic_dominance}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_raw_vs_ppmi_pagerank_rank_shift.png}
+        \caption{Rank shift from raw PageRank to PPMI PageRank.}
+        \label{fig:ingredient_raw_vs_ppmi_shift}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\textwidth]{figures/ingredient_graph_ppmi_vs_popularity.png}
+    \caption{PPMI PageRank versus ingredient popularity.}
+    \label{fig:ingredient_ppmi_vs_popularity}
+\end{figure}
+
+Jaccard reduces frequency dominance partially, but it still keeps many generic ingredients near the top. PPMI provides a clearer reduction in generic dominance: the generic share in the top 20 falls from 0.95 for raw PageRank to 0.50 for PPMI PageRank. PPMI also surfaces more specific structurally relevant ingredients such as celery, parmesan cheese, extra virgin olive oil, soy sauce, tomatoes, and ground cumin. These results should not be overclaimed: PPMI does not prove substitution, flavor compatibility, or user preference. It only identifies stronger-than-expected co-occurrence patterns inside Food.com.
+
+\subsection{Connected Components and Sensitivity Analysis}
+Connected components identify groups of ingredients that are mutually reachable through retained co-occurrence edges. The largest component contains 2,446 ingredients, while the full graph contains 84 components and 83 isolated nodes at the selected edge threshold of 20.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_component_size_distribution.png}
+        \caption{Ingredient graph component size distribution.}
+        \label{fig:ingredient_component_size_distribution}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/ingredient_graph_sensitivity_edges.png}
+        \caption{Edge-threshold sensitivity analysis.}
+        \label{fig:ingredient_sensitivity_edges}
+    \end{minipage}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rrrrr}
+\toprule
+\textbf{Min Edge Count} & \textbf{Edges} & \textbf{Components} & \textbf{Largest Share} & \textbf{Isolated Share} \\
+\midrule
+5 & 249,334 & 1 & 1.0000 & 0.0000 \\
+10 & 151,435 & 3 & 0.9992 & 0.0008 \\
+20 & 88,757 & 84 & 0.9672 & 0.0328 \\
+50 & 41,535 & 772 & 0.6951 & 0.3049 \\
+\bottomrule
+\end{tabular}
+\caption{Sensitivity of graph structure to the minimum edge co-occurrence threshold.}
+\label{tab:graph_sensitivity}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rrr}
+\toprule
+\textbf{Threshold Pair} & \textbf{Top-20 PageRank Overlap} & \textbf{Jaccard Overlap} \\
+\midrule
+5 vs. 10 & 20 & 1.00 \\
+5 vs. 20 & 20 & 1.00 \\
+5 vs. 50 & 20 & 1.00 \\
+10 vs. 20 & 20 & 1.00 \\
+10 vs. 50 & 20 & 1.00 \\
+20 vs. 50 & 20 & 1.00 \\
+\bottomrule
+\end{tabular}
+\caption{Top-20 raw PageRank stability across edge thresholds.}
+\label{tab:graph_sensitivity_overlap}
+\end{table}
+
+Lower edge thresholds preserve broad connectivity but include weaker and noisier co-occurrences. Higher thresholds emphasize repeated, stable ingredient pairs but reduce the edge set and fragment the graph. The stable top-20 PageRank overlap shows that the most central pantry backbone is robust, even while the surrounding graph structure changes substantially.
+
+\subsection{Interpretation Note: What the Graph Means and Does Not Mean}
+The graph represents ingredient co-occurrence patterns in the Food.com dataset. It captures dataset-level culinary structure, pantry-staple centrality, bridge ingredients, and stronger-than-expected associations under PPMI.
+
+The graph does \textbf{not} represent user preference, nutritional quality, causal compatibility, substitution equivalence, personalized recommendation, or proof that two ingredients taste good together outside the dataset. It is also not culturally universal, because Food.com may overrepresent American and Western comfort food.
+
+\subsection{Relationship to Previous Deliverables}
+Week 5 created content embeddings using ingredients, keywords, categories, and numeric features. Week 7 clustered recipes using semantic and numeric representations. Week 10 ranked recipes using user behavior and content similarity. The graph adds a structural ingredient-network perspective that can support graph-aware recommendation, ingredient exploration, cluster interpretation, and candidate diversification in future work.
+
 \section{Ethics and Access Note}
 
 \subsection{Data Origin}
@@ -1232,6 +1693,73 @@ Overall, the Week 7 objectives were successfully completed. The project now has:
 
 The clustering stage establishes a strong foundation for the recommendation and graph analytics components planned for the remainder of the semester.
 
+\section{Week 10 Conclusions}
+
+\subsection{Recommendation Results and Framework Performance}
+The Week 10 milestone successfully established a personalized recommendation layer over the recipe features (Week 5) and interaction data. 
+
+The offline evaluation metrics confirmed that collaborative behavioral data is highly predictive of user tastes. The Collaborative SVD model achieved a substantial improvement over the Popularity baseline, raising the Hit Rate@10 from 13.73\% to 20.74\% and NDCG@10 from 7.17\% to 11.88\%. The personalized Content-Based SVD baseline also performed well (19.99\% HR@10), indicating that the semantic representations constructed from TF-IDF are culinarily meaningful.
+
+The Hybrid Recommender (blending 60\% Collaborative SVD and 40\% Content SVD) achieved the highest overall performance with a Hit Rate@10 of 22.50\% and an NDCG@10 of 12.38\%. This proves that incorporating content SVD embeddings serves as a regularizer, refining collaborative user preferences with ingredient-level text semantic alignment.
+
+\subsection{Error Analysis Insights and Model Diagnosis}
+The qualitative error analysis exposed the structural strengths and limitations of the recommendation models through recipe-specific, domain-aware diagnosis of 15 individual cases (5 strong successes, 5 low-rank failures, 5 disliked-recommended false positives).
+
+\textbf{Key findings:}
+\begin{itemize}
+    \item \textbf{Convergence of Signals:} Strong successes occurred when both content SVD similarity and collaborative neighbor patterns converged. For example, Baked Potato Skins achieved a top-1 hybrid rank through convergent popularity, content (similarity 0.4993), and CF signals --- its universally common ingredients (potato, cheddar, bacon) mapped strongly to most users' culinary vocabulary.
+
+    \item \textbf{Intra-Author Behavioral Clusters:} Recipes from prolific Food.com contributors (e.g., Kittencal) form dense behavioral clusters: users who rate one dish from a particular author tend to rate many others from the same author highly. The CF model captures this effectively in strong cases (Kittencal's Spinach Manicotti, CF rank \#2), but the same pattern creates false positives when the user dislikes a specific recipe from that author (Kittencal's Strawberry Shortcake, rated 2/5 despite CF rank \#5).
+
+    \item \textbf{Dataset Coverage Gaps:} The Food.com dataset skews heavily toward American comfort food. Recipes from underrepresented culinary traditions --- such as hummus (Middle Eastern) or Japanese teriyaki --- have sparse TF-IDF/SVD representations, causing both content similarity and CF signals to fail structurally. This is a dataset coverage limitation, not a model architecture failure.
+
+    \item \textbf{Semantic Category Confusion:} The most structurally interesting failure involved Pumpkin Dog Cookies --- a pet food recipe rated 5 stars by a human user (who presumably baked it for their dog). Neither CF nor content models can distinguish human-food from pet-food recipes because the SVD content space collapses both into the same ingredient-keyword vector space (pumpkin, oats, flour).
+
+    \item \textbf{Implicit Allergen Blindness:} Strong false positives such as Crock Pot Cream Cheese Chicken (CF rank \#2, content rank \#3, yet rated 0/5) reveal that the SVD latent space collapses polarizing ingredients (e.g., cream cheese) into broader positive clusters (``creamy, savory, slow-cooked''), unable to detect that a specific user avoids that ingredient entirely due to intolerance or personal aversion.
+\end{itemize}
+
+To ensure reproducibility, all manual diagnoses are stored in a structured JSON file (\texttt{data/manual\_diagnoses.json}) keyed by \texttt{RecipeId}, which the report generation script (\texttt{generate\_week10\_reports.py}) injects automatically into the Markdown report. This design preserves full pipeline automation while allowing domain-expert interpretation to override generic template text.
+
+\subsection{Ethics and Access Note}
+\begin{itemize}
+    \item \textbf{Data Source:} This project uses the publicly released Food.com Recipes and Reviews dataset, originally published on Kaggle by Shuyang Li (2019). The dataset contains recipes and user reviews scraped from the Food.com platform and made available under public research terms (CC0: Public Domain).
+    \item \textbf{Usage Justification:} The dataset is a public, third-party research release available on Kaggle with no access restrictions. No private or restricted data, no API scraping, and no bypassing of platform access controls were involved in our use.
+    \item \textbf{Personal Data Risks:} The dataset contains user-generated content (review text and numeric ratings) associated with numeric Author IDs. Although display names are not used in our pipeline, it is theoretically possible that a determined actor could cross-reference the AuthorId with other public Food.com activity to re-identify specific users.
+    \item \textbf{Risk Mitigation:} We use only the numeric \texttt{AuthorId}, \texttt{RecipeId}, \texttt{Rating}, and \texttt{DateSubmitted} columns for model training and evaluation. No review text, user display names, or any other identifying strings are stored, processed, or included in our artifacts. Our pipeline outputs only aggregated model artifacts (SVD factor matrices, Bayesian score tables) and anonymized evaluation metrics.
+\end{itemize}
+
+\subsection{Project Nature and Next Steps}
+The project operates as a hybrid recommendation and ranking system. 
+For future milestones (Week 12 and Week 14), these recommendation models will be integrated with graph-based representations to compare embedding-based similarity with PageRank and degree centrality.
+Additionally, we plan to implement cluster-aware candidate filtering (using the Week 7 clusters) to evaluate how catalog segmentation improves recommendation diversity and retrieval latency.
+
+\section{Week 12 Conclusions}
+
+\subsection{Graph Definition and Construction}
+This milestone built a reproducible ingredient-ingredient co-occurrence graph from the processed Food.com recipe data. Nodes represent normalized ingredients, and edges represent undirected co-occurrences within recipes. The raw edge weight is the number of distinct recipes in which an ingredient pair appears together.
+
+The graph is reproducible from \texttt{data/processed/recipes\_processed.csv} using the script \texttt{src/graphs/build\_ingredient\_graph.py}. The construction uses only processed recipe ingredients, not ratings, reviews, aggregated ratings, or review counts.
+
+\subsection{Centrality Findings}
+Raw degree, weighted degree, and raw PageRank reveal the pantry-staple backbone of Food.com. The most central ingredients include common items such as salt, butter, sugar, onion, water, eggs, flour, milk, garlic cloves, and olive oil.
+
+This result is structurally meaningful because these ingredients connect many recipe neighborhoods. However, it should not be confused with recommendation relevance, ingredient quality, nutritional value, or user preference.
+
+\subsection{Frequent-Ingredient Dominance and Normalized Weights}
+The raw co-occurrence graph is strongly influenced by ingredient popularity. Weighted degree and weighted PageRank both have Spearman correlations above 0.97 with raw ingredient recipe frequency.
+
+To reduce this dominance, Jaccard and PPMI association weights were added. Jaccard partially discounts frequency by comparing shared appearances to the union of appearances. PPMI provides a more distinctive view by emphasizing ingredient pairs that co-occur more often than expected under independence. In the diagnostics, the generic ingredient share in the top 20 falls from 0.95 for raw PageRank to 0.50 for PPMI PageRank. Normalized rankings therefore reduce, but do not fully eliminate, generic ingredient dominance.
+
+\subsection{Validity and Sensitivity Insights}
+Graph sparsity, connected components, isolated nodes, and edge-threshold sensitivity were checked. At the selected threshold, the graph has 2,529 retained ingredient nodes, 88,757 retained edges, density 0.0278, and a largest component containing 96.72\% of retained nodes.
+
+Lower thresholds preserve connectivity but include weaker and noisier co-occurrences. Higher thresholds emphasize repeated stable co-occurrences but fragment the graph more strongly. The graph definition is therefore valid for a thresholded ingredient network, but it remains sensitive to threshold choices.
+
+\subsection{Limitations and Next Steps}
+Ingredient normalization may not merge all synonyms, quantities and preparation instructions are ignored, and the graph is undirected, so it does not capture preparation order. PPMI can also amplify rare or highly specific ingredients, which is why node and edge thresholds remain necessary.
+
+Future work could include PMI/PPMI recipe-recipe graphs, cuisine-aware ingredient subgraphs, user-recipe bipartite graphs, synonym dictionaries, or graph-aware recommendation features that combine centrality with the Week 10 hybrid recommender.
+
 \section{Pipeline Code Fragments}
 
 \subsection{List Parsing Function}
@@ -1285,23 +1813,35 @@ def parse_duration(duration: Any) -> Optional[float]:
 \begin{lstlisting}[language=bash, caption={Project repository structure}]
 recipe-recommendation-system/
 ├── artifacts/
+│   ├── week5/
+│   ├── week7/
+│   ├── week10/
 │   ├── ingredients_svd_features.npy
 │   └── num_pca_features.npy
 ├── data/
 │   ├── interim/
+│   ├── manual_diagnoses.json
 │   └── processed/
 │       ├── recipes_processed.csv
 │       └── reviews_processed.csv
 │   ├── raw/
 │   │   ├── recipes.csv
 │   │   └── reviews.csv
+├── docs/
+│   ├── main.tex
 ├── notebooks/
-│   └── 02_week5_eda_feature_design.ipynb
-│   └── 02_week5_hypothesis_notebook.ipynb
+│   ├── 02_week5_eda_feature_design.ipynb
+│   ├── 02_week5_hypothesis_notebook.ipynb
+│   ├── 05_week5_pca_svd_interpretation.ipynb
+│   └── week7_clustering_audit.md
 ├── reports/
 │   ├── figures/
-│   └── BigData_week3.pdf
-│   └── week5_feature_pipeline_explanation.md
+│   ├── BigData_week3.pdf
+│   ├── BigData_week5.pdf
+│   ├── BigData_week7.pdf
+│   ├── week5_feature_pipeline_explanation.md
+│   ├── week7_Clustering_and_Recipe_Structure_Discovery.md
+│   └── week10_recommendation_explanation.md
 ├── src/
 │   ├── features/
 │       ├── build_content_matrix.py
@@ -1312,7 +1852,10 @@ recipe-recommendation-system/
 │       ├── PCA_SVD.MD
 │       ├── reduce_dimensions.py
 │       ├── RESOLVED_FEATURES.MD
-│   └── build_features.py
+│       ├── generate_week10_reports.py
+│       ├── run_recommendation_experiments.py
+│       ├── visualize_clusters.py
+│   ├── build_features.py
 │   └── ingest_foodcom_data.py
 ├── LICENCE
 ├── README.md
