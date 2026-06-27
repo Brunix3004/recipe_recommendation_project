@@ -108,6 +108,12 @@ ARTIFACT_FILES = [
     "top_ingredients_by_weighted_degree.csv",
     "top_ingredients_by_pagerank.csv",
     "top_ingredients_by_log_pagerank.csv",
+    "top_ingredients_by_jaccard_degree.csv",
+    "top_ingredients_by_ppmi_degree.csv",
+    "top_ingredients_by_jaccard_pagerank.csv",
+    "top_ingredients_by_ppmi_pagerank.csv",
+    "comparison_raw_vs_normalized_centrality.csv",
+    "generic_dominance_diagnostics.csv",
     "sensitivity_edge_thresholds.csv",
     "sensitivity_top20_pagerank_overlap.csv",
     "graph_pipeline_config.json",
@@ -121,6 +127,11 @@ FIGURE_FILES = [
     "ingredient_graph_top_pagerank.png",
     "ingredient_graph_top_weighted_degree.png",
     "ingredient_graph_sensitivity_edges.png",
+    "ingredient_graph_top_ppmi_pagerank.png",
+    "ingredient_graph_top_jaccard_pagerank.png",
+    "ingredient_graph_raw_vs_ppmi_pagerank_rank_shift.png",
+    "ingredient_graph_generic_dominance_comparison.png",
+    "ingredient_graph_ppmi_vs_popularity.png",
 ]
 
 
@@ -344,11 +355,38 @@ def collect_ingredient_counts(
     return node_counter, pair_counter, stats
 
 
+def compute_association_weights(
+    cooccurrence_count: int,
+    source_recipe_count: int,
+    target_recipe_count: int,
+    total_pair_recipes: int,
+) -> Tuple[float, float, float]:
+    """Return Jaccard, PMI, and PPMI for an ingredient pair."""
+    c_ij = float(cooccurrence_count)
+    c_i = float(source_recipe_count)
+    c_j = float(target_recipe_count)
+    n_recipes = float(total_pair_recipes)
+
+    jaccard_denominator = c_i + c_j - c_ij
+    jaccard = float(c_ij / jaccard_denominator) if jaccard_denominator > 0 else 0.0
+
+    pmi_denominator = c_i * c_j
+    pmi_numerator = c_ij * n_recipes
+    if pmi_denominator > 0 and pmi_numerator > 0:
+        pmi = float(np.log(pmi_numerator / pmi_denominator))
+    else:
+        pmi = 0.0
+
+    ppmi = float(max(pmi, 0.0))
+    return jaccard, pmi, ppmi
+
+
 def build_graph(
     node_counter: Counter,
     pair_counter: Counter,
     min_node_recipe_count: int,
     min_edge_recipe_count: int,
+    total_pair_recipes: int,
 ) -> nx.Graph:
     retained_nodes = {
         ingredient: int(recipe_count)
@@ -377,7 +415,12 @@ def build_graph(
 
         freq_source = retained_nodes[source]
         freq_target = retained_nodes[target]
-        jaccard = float(count / (freq_source + freq_target - count))
+        jaccard, pmi, ppmi = compute_association_weights(
+            count,
+            freq_source,
+            freq_target,
+            total_pair_recipes,
+        )
         graph.add_edge(
             source,
             target,
@@ -385,6 +428,8 @@ def build_graph(
             weight=int(count),
             log_weight=float(np.log1p(count)),
             jaccard=jaccard,
+            pmi=pmi,
+            ppmi=ppmi,
         )
 
     return graph
@@ -439,6 +484,14 @@ def compute_component_lookup(graph: nx.Graph) -> Tuple[Dict[str, int], Dict[int,
 def run_pagerank(graph: nx.Graph, weight: str) -> Dict[str, float]:
     if graph.number_of_nodes() == 0:
         return {}
+    if weight is not None and graph.number_of_edges() > 0:
+        total_edge_weight = sum(
+            max(float(attrs.get(weight, 0.0)), 0.0)
+            for _, _, attrs in graph.edges(data=True)
+        )
+        if total_edge_weight <= 0.0:
+            uniform_score = 1.0 / graph.number_of_nodes()
+            return {node: uniform_score for node in graph.nodes()}
     try:
         return nx.pagerank(graph, alpha=0.85, weight=weight, max_iter=200, tol=1e-10)
     except nx.PowerIterationFailedConvergence:
@@ -455,8 +508,12 @@ def compute_node_metrics(
     degree = dict(graph.degree())
     weighted_degree = dict(graph.degree(weight="weight"))
     log_weighted_degree = dict(graph.degree(weight="log_weight"))
+    jaccard_weighted_degree = dict(graph.degree(weight="jaccard"))
+    ppmi_weighted_degree = dict(graph.degree(weight="ppmi"))
     pagerank_weighted = run_pagerank(graph, weight="weight")
     pagerank_log_weighted = run_pagerank(graph, weight="log_weight")
+    pagerank_jaccard = run_pagerank(graph, weight="jaccard")
+    pagerank_ppmi = run_pagerank(graph, weight="ppmi")
     node_to_component, component_sizes = compute_component_lookup(graph)
 
     total_degree = float(sum(degree.values()))
@@ -483,8 +540,14 @@ def compute_node_metrics(
             "degree": int(degree.get(ingredient, 0)),
             "weighted_degree": float(weighted_degree.get(ingredient, 0.0)),
             "log_weighted_degree": float(log_weighted_degree.get(ingredient, 0.0)),
+            "jaccard_weighted_degree": float(
+                jaccard_weighted_degree.get(ingredient, 0.0)
+            ),
+            "ppmi_weighted_degree": float(ppmi_weighted_degree.get(ingredient, 0.0)),
             "pagerank_weighted": float(pagerank_weighted.get(ingredient, 0.0)),
             "pagerank_log_weighted": float(pagerank_log_weighted.get(ingredient, 0.0)),
+            "pagerank_jaccard": float(pagerank_jaccard.get(ingredient, 0.0)),
+            "pagerank_ppmi": float(pagerank_ppmi.get(ingredient, 0.0)),
             "component_id": component_id,
             "component_size": int(component_sizes.get(component_id, 0)),
             "degree_share": (
@@ -528,11 +591,22 @@ def edges_to_dataframe(graph: nx.Graph) -> pd.DataFrame:
                 "weight": int(attrs.get("weight", 0)),
                 "log_weight": float(attrs.get("log_weight", 0.0)),
                 "jaccard": float(attrs.get("jaccard", 0.0)),
+                "pmi": float(attrs.get("pmi", 0.0)),
+                "ppmi": float(attrs.get("ppmi", 0.0)),
             }
         )
     if not rows:
         return pd.DataFrame(
-            columns=["source", "target", "cooccurrence_count", "weight", "log_weight", "jaccard"]
+            columns=[
+                "source",
+                "target",
+                "cooccurrence_count",
+                "weight",
+                "log_weight",
+                "jaccard",
+                "pmi",
+                "ppmi",
+            ]
         )
     return pd.DataFrame(rows).sort_values(["source", "target"]).reset_index(drop=True)
 
@@ -544,6 +618,10 @@ def add_rank_columns(nodes_df: pd.DataFrame) -> pd.DataFrame:
         ("weighted_degree", "weighted_degree_rank"),
         ("pagerank_weighted", "pagerank_rank"),
         ("pagerank_log_weighted", "log_pagerank_rank"),
+        ("jaccard_weighted_degree", "jaccard_degree_rank"),
+        ("ppmi_weighted_degree", "ppmi_degree_rank"),
+        ("pagerank_jaccard", "pagerank_jaccard_rank"),
+        ("pagerank_ppmi", "pagerank_ppmi_rank"),
     ]
     for metric, rank_col in rank_specs:
         order = ranked.sort_values([metric, "ingredient"], ascending=[False, True]).index
@@ -560,6 +638,10 @@ def top_by_metric(nodes_df: pd.DataFrame, metric: str, n: int = 100) -> pd.DataF
         "weighted_degree",
         "pagerank_weighted",
         "pagerank_log_weighted",
+        "jaccard_weighted_degree",
+        "ppmi_weighted_degree",
+        "pagerank_jaccard",
+        "pagerank_ppmi",
         "component_id",
         "component_size",
     ]
@@ -568,6 +650,10 @@ def top_by_metric(nodes_df: pd.DataFrame, metric: str, n: int = 100) -> pd.DataF
         "weighted_degree": "weighted_degree_rank",
         "pagerank_weighted": "pagerank_rank",
         "pagerank_log_weighted": "log_pagerank_rank",
+        "jaccard_weighted_degree": "jaccard_degree_rank",
+        "ppmi_weighted_degree": "ppmi_degree_rank",
+        "pagerank_jaccard": "pagerank_jaccard_rank",
+        "pagerank_ppmi": "pagerank_ppmi_rank",
     }[metric]
     out = nodes_df.sort_values([metric, "ingredient"], ascending=[False, True]).head(n).copy()
     out.insert(0, "rank", np.arange(1, len(out) + 1))
@@ -669,6 +755,121 @@ def build_comparison_df(nodes_df: pd.DataFrame) -> pd.DataFrame:
                     ),
                 }
             )
+    return pd.DataFrame(rows)
+
+
+def build_raw_vs_normalized_comparison_df(nodes_df: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    ranking_metrics = [
+        "weighted_degree",
+        "pagerank_weighted",
+        "jaccard_weighted_degree",
+        "ppmi_weighted_degree",
+        "pagerank_jaccard",
+        "pagerank_ppmi",
+    ]
+
+    for graph_metric in ranking_metrics:
+        rows.append(
+            {
+                "comparison_type": "spearman_correlation_with_popularity",
+                "baseline_metric": "recipe_count",
+                "graph_metric": graph_metric,
+                "k": np.nan,
+                "value": safe_spearman(nodes_df, "recipe_count", graph_metric),
+                "overlap_count": np.nan,
+                "overlap_share": np.nan,
+                "description": (
+                    "Spearman correlation between raw ingredient recipe_count "
+                    f"and {graph_metric}."
+                ),
+            }
+        )
+
+    for k in [10, 20, 50, 100]:
+        popularity_set = top_k_set(nodes_df, "recipe_count", k)
+        denominator = min(k, len(nodes_df))
+        for graph_metric in ranking_metrics:
+            graph_set = top_k_set(nodes_df, graph_metric, k)
+            overlap = popularity_set & graph_set
+            rows.append(
+                {
+                    "comparison_type": "top_k_overlap_with_popularity",
+                    "baseline_metric": "recipe_count",
+                    "graph_metric": graph_metric,
+                    "k": int(k),
+                    "value": float(len(overlap) / denominator) if denominator else 0.0,
+                    "overlap_count": int(len(overlap)),
+                    "overlap_share": (
+                        float(len(overlap) / denominator) if denominator else 0.0
+                    ),
+                    "description": (
+                        f"Top-{k} overlap between raw popularity and "
+                        f"{graph_metric} ranking."
+                    ),
+                }
+            )
+
+    for k in [10, 20, 50, 100]:
+        raw_pagerank_set = top_k_set(nodes_df, "pagerank_weighted", k)
+        denominator = min(k, len(nodes_df))
+        for normalized_metric in ["pagerank_jaccard", "pagerank_ppmi"]:
+            normalized_set = top_k_set(nodes_df, normalized_metric, k)
+            overlap = raw_pagerank_set & normalized_set
+            rows.append(
+                {
+                    "comparison_type": "top_k_overlap_with_raw_pagerank",
+                    "baseline_metric": "pagerank_weighted",
+                    "graph_metric": normalized_metric,
+                    "k": int(k),
+                    "value": float(len(overlap) / denominator) if denominator else 0.0,
+                    "overlap_count": int(len(overlap)),
+                    "overlap_share": (
+                        float(len(overlap) / denominator) if denominator else 0.0
+                    ),
+                    "description": (
+                        f"Top-{k} overlap between raw weighted PageRank and "
+                        f"{normalized_metric} ranking."
+                    ),
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def build_generic_dominance_diagnostics(nodes_df: pd.DataFrame) -> pd.DataFrame:
+    ranking_specs = [
+        ("popularity", "recipe_count"),
+        ("weighted_degree", "weighted_degree"),
+        ("pagerank_weighted", "pagerank_weighted"),
+        ("jaccard_weighted_degree", "jaccard_weighted_degree"),
+        ("ppmi_weighted_degree", "ppmi_weighted_degree"),
+        ("pagerank_jaccard", "pagerank_jaccard"),
+        ("pagerank_ppmi", "pagerank_ppmi"),
+    ]
+
+    rows = []
+    for ranking_name, metric in ranking_specs:
+        row: Dict[str, Any] = {"ranking": ranking_name, "metric": metric}
+        for k in [10, 20, 50]:
+            top_ingredients = (
+                nodes_df.sort_values([metric, "ingredient"], ascending=[False, True])
+                .head(k)["ingredient"]
+                .tolist()
+            )
+            generic_ingredients = [
+                ingredient
+                for ingredient in top_ingredients
+                if ingredient in GENERIC_INGREDIENTS
+            ]
+            denominator = min(k, len(top_ingredients))
+            row[f"generic_ingredients_top{k}"] = "; ".join(generic_ingredients)
+            row[f"generic_count_top{k}"] = int(len(generic_ingredients))
+            row[f"generic_share_top{k}"] = (
+                float(len(generic_ingredients) / denominator) if denominator else 0.0
+            )
+        rows.append(row)
+
     return pd.DataFrame(rows)
 
 
@@ -927,11 +1128,112 @@ def plot_sensitivity(sensitivity_df: pd.DataFrame, path: Path) -> None:
     plt.close(fig)
 
 
+def plot_rank_shift_raw_vs_ppmi(nodes_df: pd.DataFrame, path: Path) -> None:
+    required = {"pagerank_rank", "pagerank_ppmi_rank", "pagerank_ppmi"}
+    if nodes_df.empty or not required.issubset(nodes_df.columns):
+        save_empty_figure(path, "Raw vs PPMI PageRank Rank Shift")
+        return
+
+    plot_df = nodes_df.copy()
+    plot_df["rank_gain"] = plot_df["pagerank_rank"] - plot_df["pagerank_ppmi_rank"]
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.scatter(
+        plot_df["pagerank_rank"],
+        plot_df["pagerank_ppmi_rank"],
+        alpha=0.45,
+        s=16,
+    )
+    max_rank = int(max(plot_df["pagerank_rank"].max(), plot_df["pagerank_ppmi_rank"].max()))
+    ax.plot([1, max_rank], [1, max_rank], color="black", linewidth=1, linestyle="--")
+
+    label_df = (
+        plot_df.query("rank_gain > 0")
+        .sort_values(["rank_gain", "pagerank_ppmi"], ascending=[False, False])
+        .head(8)
+    )
+    for _, row in label_df.iterrows():
+        ax.annotate(
+            row["ingredient"],
+            (row["pagerank_rank"], row["pagerank_ppmi_rank"]),
+            fontsize=8,
+            xytext=(4, 4),
+            textcoords="offset points",
+        )
+
+    ax.set_title("Raw vs PPMI PageRank Rank Shift")
+    ax.set_xlabel("Raw weighted PageRank rank")
+    ax.set_ylabel("PPMI PageRank rank")
+    ax.set_xlim(0, max_rank + 1)
+    ax.set_ylim(max_rank + 1, 0)
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
+def plot_generic_dominance_comparison(
+    generic_diagnostics_df: pd.DataFrame,
+    path: Path,
+) -> None:
+    if generic_diagnostics_df.empty or "generic_share_top20" not in generic_diagnostics_df:
+        save_empty_figure(path, "Generic Ingredient Share in Top 20 Rankings")
+        return
+    display = generic_diagnostics_df.copy()
+    display["ranking_label"] = display["ranking"].str.replace("_", " ", regex=False)
+    fig_height = max(4.5, 0.45 * len(display) + 1.5)
+    fig, ax = plt.subplots(figsize=(8, fig_height))
+    ax.barh(display["ranking_label"], display["generic_share_top20"])
+    ax.set_title("Generic Ingredient Share in Top 20 Rankings")
+    ax.set_xlabel("Generic share in top 20")
+    ax.set_ylabel("")
+    ax.set_xlim(0, 1)
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
+def plot_ppmi_vs_popularity(nodes_df: pd.DataFrame, path: Path) -> None:
+    required = {"recipe_count", "pagerank_ppmi"}
+    if nodes_df.empty or not required.issubset(nodes_df.columns):
+        save_empty_figure(path, "PPMI PageRank vs Ingredient Popularity")
+        return
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.scatter(
+        np.log1p(nodes_df["recipe_count"]),
+        nodes_df["pagerank_ppmi"],
+        alpha=0.55,
+        s=18,
+    )
+    label_df = (
+        nodes_df.assign(rank_gap=nodes_df["popularity_rank"] - nodes_df["pagerank_ppmi_rank"])
+        .query("rank_gap > 0")
+        .sort_values(["rank_gap", "pagerank_ppmi"], ascending=[False, False])
+        .head(5)
+    )
+    for _, row in label_df.iterrows():
+        ax.annotate(
+            row["ingredient"],
+            (np.log1p(row["recipe_count"]), row["pagerank_ppmi"]),
+            fontsize=8,
+            xytext=(4, 4),
+            textcoords="offset points",
+        )
+    ax.set_title("PPMI PageRank vs Ingredient Popularity")
+    ax.set_xlabel("log1p(recipe_count)")
+    ax.set_ylabel("PPMI PageRank")
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
 def make_figures(
     nodes_df: pd.DataFrame,
     components_df: pd.DataFrame,
     top_pagerank_df: pd.DataFrame,
     top_weighted_degree_df: pd.DataFrame,
+    top_jaccard_pagerank_df: pd.DataFrame,
+    top_ppmi_pagerank_df: pd.DataFrame,
+    generic_diagnostics_df: pd.DataFrame,
     sensitivity_df: pd.DataFrame,
     figures_dir: Path,
 ) -> None:
@@ -963,12 +1265,39 @@ def make_figures(
         "Weighted degree",
     )
     plot_sensitivity(sensitivity_df, figures_dir / "ingredient_graph_sensitivity_edges.png")
+    plot_top_bar(
+        top_ppmi_pagerank_df,
+        "pagerank_ppmi",
+        figures_dir / "ingredient_graph_top_ppmi_pagerank.png",
+        "Top Ingredients by PPMI PageRank",
+        "PPMI PageRank",
+    )
+    plot_top_bar(
+        top_jaccard_pagerank_df,
+        "pagerank_jaccard",
+        figures_dir / "ingredient_graph_top_jaccard_pagerank.png",
+        "Top Ingredients by Jaccard PageRank",
+        "Jaccard PageRank",
+    )
+    plot_rank_shift_raw_vs_ppmi(
+        nodes_df,
+        figures_dir / "ingredient_graph_raw_vs_ppmi_pagerank_rank_shift.png",
+    )
+    plot_generic_dominance_comparison(
+        generic_diagnostics_df,
+        figures_dir / "ingredient_graph_generic_dominance_comparison.png",
+    )
+    plot_ppmi_vs_popularity(
+        nodes_df,
+        figures_dir / "ingredient_graph_ppmi_vs_popularity.png",
+    )
 
 
 def build_sensitivity_outputs(
     node_counter: Counter,
     pair_counter: Counter,
     min_node_recipe_count: int,
+    total_pair_recipes: int,
     thresholds: Sequence[int],
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     threshold_rows = []
@@ -976,7 +1305,13 @@ def build_sensitivity_outputs(
 
     for threshold in sorted(dict.fromkeys(thresholds)):
         logger.info("Running edge-threshold sensitivity for min_edge_recipe_count=%s", threshold)
-        graph = build_graph(node_counter, pair_counter, min_node_recipe_count, threshold)
+        graph = build_graph(
+            node_counter,
+            pair_counter,
+            min_node_recipe_count,
+            threshold,
+            total_pair_recipes,
+        )
         stats = compute_graph_statistics(graph)
         nodes_df = compute_node_metrics(graph)
         top20 = top_k_set(nodes_df, "pagerank_weighted", min(20, len(nodes_df)))
@@ -1142,6 +1477,42 @@ def comparison_report_tables(comparison_df: pd.DataFrame) -> Tuple[str, str]:
     return corr_table, overlap_table
 
 
+def normalized_comparison_report_tables(
+    normalized_comparison_df: pd.DataFrame,
+) -> Tuple[str, str, str]:
+    corr_df = normalized_comparison_df[
+        normalized_comparison_df["comparison_type"].eq(
+            "spearman_correlation_with_popularity"
+        )
+    ].copy()
+    popularity_overlap_df = normalized_comparison_df[
+        normalized_comparison_df["comparison_type"].eq("top_k_overlap_with_popularity")
+    ].copy()
+    pagerank_overlap_df = normalized_comparison_df[
+        normalized_comparison_df["comparison_type"].eq("top_k_overlap_with_raw_pagerank")
+    ].copy()
+
+    corr_table = markdown_table(
+        corr_df,
+        ["baseline_metric", "graph_metric", "value"],
+        ["Baseline metric", "Graph metric", "Spearman rho"],
+        max_rows=len(corr_df),
+    )
+    popularity_overlap_table = markdown_table(
+        popularity_overlap_df,
+        ["graph_metric", "k", "overlap_count", "overlap_share"],
+        ["Graph metric", "K", "Overlap count", "Overlap share"],
+        max_rows=len(popularity_overlap_df),
+    )
+    pagerank_overlap_table = markdown_table(
+        pagerank_overlap_df,
+        ["baseline_metric", "graph_metric", "k", "overlap_count", "overlap_share"],
+        ["Baseline metric", "Graph metric", "K", "Overlap count", "Overlap share"],
+        max_rows=len(pagerank_overlap_df),
+    )
+    return corr_table, popularity_overlap_table, pagerank_overlap_table
+
+
 def rank_gap_examples(nodes_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     pagerank_beyond_frequency = (
         nodes_df.assign(rank_gap=nodes_df["popularity_rank"] - nodes_df["pagerank_rank"])
@@ -1172,11 +1543,20 @@ def generate_report(
     top_popularity_df: pd.DataFrame,
     top_weighted_degree_df: pd.DataFrame,
     top_pagerank_df: pd.DataFrame,
+    top_jaccard_pagerank_df: pd.DataFrame,
+    top_ppmi_pagerank_df: pd.DataFrame,
+    normalized_comparison_df: pd.DataFrame,
+    generic_diagnostics_df: pd.DataFrame,
     ranked_week10_files: Sequence[str],
 ) -> None:
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
     corr_table, overlap_table = comparison_report_tables(comparison_df)
+    (
+        normalized_corr_table,
+        normalized_popularity_overlap_table,
+        normalized_pagerank_overlap_table,
+    ) = normalized_comparison_report_tables(normalized_comparison_df)
     pagerank_beyond_frequency, popularity_less_distinctive = rank_gap_examples(nodes_df)
 
     model_artifact_note = (
@@ -1318,7 +1698,62 @@ Examples where popularity is high but PageRank is less distinctive:
 
 If the correlations are high, graph centrality is partially driven by ingredient popularity. Differences between the rankings show where PageRank captures network position beyond simple frequency.
 
-## 9. Sensitivity Analysis
+## 9. Normalized Association Graph: Reducing Frequent-Ingredient Dominance
+
+Raw co-occurrence centrality is dominated by frequent pantry ingredients. This is expected because ingredients like salt and butter appear in many recipes and therefore accumulate many co-occurrence edges. To reduce this dominance, the graph now also computes Jaccard and PPMI edge weights while keeping the raw co-occurrence graph as the baseline.
+
+Jaccard measures the share of shared recipe appearances relative to the union of both ingredient appearances. PMI compares observed co-occurrence against expected co-occurrence under independence. PPMI keeps only positive associations, highlighting ingredient pairs that co-occur more often than expected.
+
+Formulas:
+
+`Jaccard(i, j) = c_ij / (c_i + c_j - c_ij)`
+
+`PMI(i, j) = log((c_ij * N) / (c_i * c_j))`
+
+`PPMI(i, j) = max(PMI(i, j), 0)`
+
+Raw PageRank answers: "Which ingredients are central due to frequent co-occurrence?" Jaccard/PPMI PageRank answers: "Which ingredients are central after discounting generic frequency?" The normalized graph does not replace the raw graph; it complements it. If normalized rankings still include generic ingredients, that means those ingredients remain structurally central after normalization. When more specific ingredients rise, they should be interpreted as more distinctive structural connectors, not as proven substitutions or universal flavor matches.
+
+Top ingredients by PPMI PageRank:
+
+{markdown_table(top_ppmi_pagerank_df, ["rank", "ingredient", "recipe_count", "ppmi_weighted_degree", "pagerank_ppmi", "pagerank_ppmi_rank"], ["Rank", "Ingredient", "Recipe count", "PPMI degree", "PPMI PageRank", "PPMI rank"], max_rows=15)}
+
+Top ingredients by Jaccard PageRank:
+
+{markdown_table(top_jaccard_pagerank_df, ["rank", "ingredient", "recipe_count", "jaccard_weighted_degree", "pagerank_jaccard", "pagerank_jaccard_rank"], ["Rank", "Ingredient", "Recipe count", "Jaccard degree", "Jaccard PageRank", "Jaccard rank"], max_rows=15)}
+
+Generic ingredient dominance diagnostics:
+
+{markdown_table(generic_diagnostics_df, ["ranking", "generic_count_top10", "generic_share_top10", "generic_count_top20", "generic_share_top20", "generic_count_top50", "generic_share_top50"], ["Ranking", "Generic top 10", "Share top 10", "Generic top 20", "Share top 20", "Generic top 50", "Share top 50"], max_rows=len(generic_diagnostics_df))}
+
+Spearman correlation with raw ingredient popularity:
+
+{normalized_corr_table}
+
+Top-K overlap with raw popularity:
+
+{normalized_popularity_overlap_table}
+
+Top-K overlap between raw PageRank and normalized PageRank:
+
+{normalized_pagerank_overlap_table}
+
+Generated normalized-analysis tables:
+- `artifacts/week12/ingredient_graph/top_ingredients_by_ppmi_pagerank.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_jaccard_pagerank.csv`
+- `artifacts/week12/ingredient_graph/generic_dominance_diagnostics.csv`
+- `artifacts/week12/ingredient_graph/comparison_raw_vs_normalized_centrality.csv`
+
+Figures:
+- `reports/figures/ingredient_graph_top_ppmi_pagerank.png`
+- `reports/figures/ingredient_graph_top_jaccard_pagerank.png`
+- `reports/figures/ingredient_graph_raw_vs_ppmi_pagerank_rank_shift.png`
+- `reports/figures/ingredient_graph_generic_dominance_comparison.png`
+- `reports/figures/ingredient_graph_ppmi_vs_popularity.png`
+
+The raw graph identifies the pantry-staple backbone of Food.com, while the normalized graph attempts to surface more distinctive ingredient associations. This makes the graph analysis more useful because it separates frequency-driven centrality from association-driven centrality. Normalized weights are sensitive to rare ingredients, so the min-node and min-edge thresholds remain necessary. PPMI does not prove substitution, causal compatibility, or flavor compatibility; it only identifies stronger-than-expected co-occurrence inside this dataset.
+
+## 10. Sensitivity Analysis
 
 Edge threshold matters because it controls whether weak one-off co-occurrences are retained. Lower thresholds keep more edges and usually create a denser, more connected graph. Higher thresholds emphasize stable co-occurrences but can isolate nodes and fragment components.
 
@@ -1330,23 +1765,23 @@ Top-20 PageRank overlap between thresholds:
 
 Stable top central ingredients indicate robust graph structure. Large overlap changes indicate sensitivity to the edge-definition threshold. Figure: `reports/figures/ingredient_graph_sensitivity_edges.png`
 
-## 10. Interpretation Note: What the Graph Means and Does Not Mean
+## 11. Interpretation Note: What the Graph Means and Does Not Mean
 
 Graph structure means ingredient co-occurrence patterns in the Food.com dataset. It can reflect culinary compatibility inside the dataset, pantry-staple centrality, bridge ingredients between culinary styles, and structural ingredient importance.
 
 Graph structure does not mean user preference, nutritional quality, causal compatibility, substitution equivalence, personalized recommendation, or universal cultural importance. It also does not prove that two ingredients taste good together outside the dataset context. Food.com may overrepresent American and Western comfort food, so central ingredients reflect the dataset's cuisine distribution and contributor behavior.
 
-## 11. Relationship to Previous Deliverables
+## 12. Relationship to Previous Deliverables
 
 Week 5 produced content embeddings from ingredient, category, keyword, and numeric features. Week 7 clustered recipes using semantic and numeric recipe representations. Week 10 ranked recipes using user behavior and content similarity. Week 12 adds a structural ingredient-network perspective that can support future cluster-aware and graph-aware recommendation.
 
-## 12. Limitations and Future Work
+## 13. Limitations and Future Work
 
-Ingredient normalization may not merge all synonyms. Raw co-occurrence favors common ingredients. The edge threshold affects graph density and component structure. Quantities, preparation instructions, and cooking order are ignored. The graph is undirected and does not capture preparation sequence. High centrality may be dominated by staples.
+Ingredient normalization may not merge all synonyms. Raw co-occurrence favors common ingredients. Normalized association weights reduce frequency dominance, but they can amplify rare or highly specific ingredients, so node and edge thresholds remain important. The edge threshold affects graph density and component structure. Quantities, preparation instructions, and cooking order are ignored. The graph is undirected and does not capture preparation sequence. High centrality may still include staples when they remain structurally central after normalization.
 
-Future work could use PMI, PPMI, or Jaccard-weighted graphs; recipe-recipe graphs; user-recipe bipartite graphs; synonym dictionaries; or graph-aware recommendation features.
+Future work could use synonym dictionaries, ingredient-family rollups, cuisine-aware subgraphs, temporal graph analysis, or graph-aware recommendation features.
 
-## 13. Reproducibility
+## 14. Reproducibility
 
 Exact command:
 
@@ -1379,6 +1814,7 @@ def main() -> None:
     node_counter, pair_counter, counts_stats = collect_ingredient_counts(
         recipes_df[INGREDIENT_COL]
     )
+    total_pair_recipes = int(counts_stats["recipes_with_at_least_2_valid_ingredients"])
 
     logger.info("Building main ingredient graph.")
     graph = build_graph(
@@ -1386,6 +1822,7 @@ def main() -> None:
         pair_counter,
         args.min_node_recipe_count,
         args.min_edge_recipe_count,
+        total_pair_recipes,
     )
     graph_stats = compute_graph_statistics(graph)
     nodes_df = compute_node_metrics(
@@ -1402,7 +1839,13 @@ def main() -> None:
     top_weighted_degree_df = top_by_metric(nodes_df, "weighted_degree")
     top_pagerank_df = top_by_metric(nodes_df, "pagerank_weighted")
     top_log_pagerank_df = top_by_metric(nodes_df, "pagerank_log_weighted")
+    top_jaccard_degree_df = top_by_metric(nodes_df, "jaccard_weighted_degree")
+    top_ppmi_degree_df = top_by_metric(nodes_df, "ppmi_weighted_degree")
+    top_jaccard_pagerank_df = top_by_metric(nodes_df, "pagerank_jaccard")
+    top_ppmi_pagerank_df = top_by_metric(nodes_df, "pagerank_ppmi")
     comparison_df = build_comparison_df(nodes_df)
+    normalized_comparison_df = build_raw_vs_normalized_comparison_df(nodes_df)
+    generic_diagnostics_df = build_generic_dominance_diagnostics(nodes_df)
 
     summary = {
         "graph_definition": GRAPH_DEFINITION,
@@ -1410,6 +1853,7 @@ def main() -> None:
         "output_path": str(args.out),
         "min_node_recipe_count": int(args.min_node_recipe_count),
         "min_edge_recipe_count": int(args.min_edge_recipe_count),
+        "association_weight_recipe_count_n": int(total_pair_recipes),
         "recipes_processed": int(counts_stats["recipes_processed"]),
         "raw_node_count": int(counts_stats["raw_unique_ingredients_before_filtering"]),
         "retained_node_count": int(graph.number_of_nodes()),
@@ -1425,6 +1869,7 @@ def main() -> None:
         "average_degree": float(graph_stats["average_degree"]),
         "average_weighted_degree": float(graph_stats["average_weighted_degree"]),
         "top_component_sizes": graph_stats["top_component_sizes"],
+        "normalized_edge_weights": ["jaccard", "pmi", "ppmi"],
     }
 
     validity_df = build_validity_checks(summary, counts_stats, nodes_df)
@@ -1432,6 +1877,7 @@ def main() -> None:
         node_counter,
         pair_counter,
         args.min_node_recipe_count,
+        total_pair_recipes,
         args.sensitivity_edge_thresholds,
     )
     ranked_week10_files = inspect_week10_ranked_outputs()
@@ -1450,6 +1896,24 @@ def main() -> None:
     )
     top_pagerank_df.to_csv(args.out / "top_ingredients_by_pagerank.csv", index=False)
     top_log_pagerank_df.to_csv(args.out / "top_ingredients_by_log_pagerank.csv", index=False)
+    top_jaccard_degree_df.to_csv(
+        args.out / "top_ingredients_by_jaccard_degree.csv", index=False
+    )
+    top_ppmi_degree_df.to_csv(
+        args.out / "top_ingredients_by_ppmi_degree.csv", index=False
+    )
+    top_jaccard_pagerank_df.to_csv(
+        args.out / "top_ingredients_by_jaccard_pagerank.csv", index=False
+    )
+    top_ppmi_pagerank_df.to_csv(
+        args.out / "top_ingredients_by_ppmi_pagerank.csv", index=False
+    )
+    normalized_comparison_df.to_csv(
+        args.out / "comparison_raw_vs_normalized_centrality.csv", index=False
+    )
+    generic_diagnostics_df.to_csv(
+        args.out / "generic_dominance_diagnostics.csv", index=False
+    )
     sensitivity_df.to_csv(args.out / "sensitivity_edge_thresholds.csv", index=False)
     sensitivity_overlap_df.to_csv(
         args.out / "sensitivity_top20_pagerank_overlap.csv", index=False
@@ -1463,8 +1927,17 @@ def main() -> None:
         "report": str(args.report),
         "min_node_recipe_count": int(args.min_node_recipe_count),
         "min_edge_recipe_count": int(args.min_edge_recipe_count),
+        "association_weight_recipe_count_n": int(total_pair_recipes),
         "sensitivity_edge_thresholds": [
             int(threshold) for threshold in args.sensitivity_edge_thresholds
+        ],
+        "edge_weight_attributes": [
+            "cooccurrence_count",
+            "weight",
+            "log_weight",
+            "jaccard",
+            "pmi",
+            "ppmi",
         ],
         "compute_approx_betweenness": bool(args.compute_approx_betweenness),
         "approx_betweenness_samples": int(args.approx_betweenness_samples),
@@ -1480,6 +1953,9 @@ def main() -> None:
         components_df,
         top_pagerank_df,
         top_weighted_degree_df,
+        top_jaccard_pagerank_df,
+        top_ppmi_pagerank_df,
+        generic_diagnostics_df,
         sensitivity_df,
         args.figures,
     )
@@ -1499,6 +1975,10 @@ def main() -> None:
         top_popularity_df,
         top_weighted_degree_df,
         top_pagerank_df,
+        top_jaccard_pagerank_df,
+        top_ppmi_pagerank_df,
+        normalized_comparison_df,
+        generic_diagnostics_df,
         ranked_week10_files,
     )
     logger.info("Week 12 graph deliverable complete.")

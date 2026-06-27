@@ -216,7 +216,143 @@ Examples where popularity is high but PageRank is less distinctive:
 
 If the correlations are high, graph centrality is partially driven by ingredient popularity. Differences between the rankings show where PageRank captures network position beyond simple frequency.
 
-## 9. Sensitivity Analysis
+## 9. Normalized Association Graph: Reducing Frequent-Ingredient Dominance
+
+Raw co-occurrence centrality is dominated by frequent pantry ingredients. This is expected because ingredients like salt and butter appear in many recipes and therefore accumulate many co-occurrence edges. To reduce this dominance, the graph now also computes Jaccard and PPMI edge weights while keeping the raw co-occurrence graph as the baseline.
+
+Jaccard measures the share of shared recipe appearances relative to the union of both ingredient appearances. PMI compares observed co-occurrence against expected co-occurrence under independence. PPMI keeps only positive associations, highlighting ingredient pairs that co-occur more often than expected.
+
+Formulas:
+
+`Jaccard(i, j) = c_ij / (c_i + c_j - c_ij)`
+
+`PMI(i, j) = log((c_ij * N) / (c_i * c_j))`
+
+`PPMI(i, j) = max(PMI(i, j), 0)`
+
+Raw PageRank answers: "Which ingredients are central due to frequent co-occurrence?" Jaccard/PPMI PageRank answers: "Which ingredients are central after discounting generic frequency?" The normalized graph does not replace the raw graph; it complements it. If normalized rankings still include generic ingredients, that means those ingredients remain structurally central after normalization. When more specific ingredients rise, they should be interpreted as more distinctive structural connectors, not as proven substitutions or universal flavor matches.
+
+Top ingredients by PPMI PageRank:
+
+| Rank | Ingredient | Recipe count | PPMI degree | PPMI PageRank | PPMI rank |
+| --- | --- | --- | --- | --- | --- |
+| 1 | olive_oil | 72,763 | 711.1616 | 0.0095 | 1 |
+| 2 | onion | 86,321 | 676.3726 | 0.0091 | 2 |
+| 3 | garlic_cloves | 58,612 | 855.5846 | 0.0090 | 3 |
+| 4 | sugar | 102,808 | 321.6327 | 0.0059 | 4 |
+| 5 | salt | 190,464 | 255.7217 | 0.0054 | 5 |
+| 6 | water | 79,884 | 410.6094 | 0.0050 | 6 |
+| 7 | celery | 22,503 | 574.8158 | 0.0047 | 7 |
+| 8 | garlic | 34,901 | 584.7253 | 0.0044 | 8 |
+| 9 | parmesan_cheese | 31,308 | 453.4216 | 0.0043 | 9 |
+| 10 | extra_virgin_olive_oil | 17,068 | 539.4140 | 0.0043 | 10 |
+| 11 | onions | 22,054 | 542.9390 | 0.0039 | 11 |
+| 12 | soy_sauce | 18,899 | 476.4585 | 0.0039 | 12 |
+| 13 | tomatoes | 26,740 | 515.7053 | 0.0039 | 13 |
+| 14 | butter | 123,598 | 221.2350 | 0.0038 | 14 |
+| 15 | ground_cumin | 12,858 | 549.5567 | 0.0036 | 15 |
+
+Top ingredients by Jaccard PageRank:
+
+| Rank | Ingredient | Recipe count | Jaccard degree | Jaccard PageRank | Jaccard rank |
+| --- | --- | --- | --- | --- | --- |
+| 1 | salt | 190,464 | 7.9089 | 0.0132 | 1 |
+| 2 | onion | 86,321 | 7.2659 | 0.0094 | 2 |
+| 3 | olive_oil | 72,763 | 7.0475 | 0.0091 | 3 |
+| 4 | garlic_cloves | 58,612 | 7.4819 | 0.0083 | 4 |
+| 5 | sugar | 102,808 | 6.0366 | 0.0078 | 5 |
+| 6 | butter | 123,598 | 6.3964 | 0.0074 | 6 |
+| 7 | water | 79,884 | 6.1823 | 0.0068 | 7 |
+| 8 | eggs | 80,436 | 6.0688 | 0.0057 | 8 |
+| 9 | pepper | 48,754 | 5.9256 | 0.0054 | 9 |
+| 10 | garlic | 34,901 | 6.2185 | 0.0051 | 10 |
+| 11 | celery | 22,503 | 5.8141 | 0.0050 | 11 |
+| 12 | parmesan_cheese | 31,308 | 5.2335 | 0.0050 | 12 |
+| 13 | milk | 58,800 | 5.0895 | 0.0048 | 13 |
+| 14 | flour | 59,081 | 5.6317 | 0.0048 | 14 |
+| 15 | all_purpose_flour | 41,176 | 5.6718 | 0.0046 | 15 |
+
+Generic ingredient dominance diagnostics:
+
+| Ranking | Generic top 10 | Share top 10 | Generic top 20 | Share top 20 | Generic top 50 | Share top 50 |
+| --- | --- | --- | --- | --- | --- | --- |
+| popularity | 10 | 1 | 19 | 0.9500 | 26 | 0.5200 |
+| weighted_degree | 10 | 1 | 19 | 0.9500 | 25 | 0.5000 |
+| pagerank_weighted | 10 | 1 | 19 | 0.9500 | 25 | 0.5000 |
+| jaccard_weighted_degree | 10 | 1 | 16 | 0.8000 | 22 | 0.4400 |
+| ppmi_weighted_degree | 5 | 0.5000 | 5 | 0.2500 | 12 | 0.2400 |
+| pagerank_jaccard | 10 | 1 | 16 | 0.8000 | 24 | 0.4800 |
+| pagerank_ppmi | 7 | 0.7000 | 10 | 0.5000 | 20 | 0.4000 |
+
+Spearman correlation with raw ingredient popularity:
+
+| Baseline metric | Graph metric | Spearman rho |
+| --- | --- | --- |
+| recipe_count | weighted_degree | 0.9754 |
+| recipe_count | pagerank_weighted | 0.9762 |
+| recipe_count | jaccard_weighted_degree | 0.9429 |
+| recipe_count | ppmi_weighted_degree | 0.9281 |
+| recipe_count | pagerank_jaccard | 0.9405 |
+| recipe_count | pagerank_ppmi | 0.9249 |
+
+Top-K overlap with raw popularity:
+
+| Graph metric | K | Overlap count | Overlap share |
+| --- | --- | --- | --- |
+| weighted_degree | 10 | 10 | 1 |
+| pagerank_weighted | 10 | 10 | 1 |
+| jaccard_weighted_degree | 10 | 8 | 0.8000 |
+| ppmi_weighted_degree | 10 | 3 | 0.3000 |
+| pagerank_jaccard | 10 | 8 | 0.8000 |
+| pagerank_ppmi | 10 | 6 | 0.6000 |
+| weighted_degree | 20 | 19 | 0.9500 |
+| pagerank_weighted | 20 | 19 | 0.9500 |
+| jaccard_weighted_degree | 20 | 14 | 0.7000 |
+| ppmi_weighted_degree | 20 | 5 | 0.2500 |
+| pagerank_jaccard | 20 | 17 | 0.8500 |
+| pagerank_ppmi | 20 | 10 | 0.5000 |
+| weighted_degree | 50 | 48 | 0.9600 |
+| pagerank_weighted | 50 | 48 | 0.9600 |
+| jaccard_weighted_degree | 50 | 40 | 0.8000 |
+| ppmi_weighted_degree | 50 | 28 | 0.5600 |
+| pagerank_jaccard | 50 | 45 | 0.9000 |
+| pagerank_ppmi | 50 | 37 | 0.7400 |
+| weighted_degree | 100 | 95 | 0.9500 |
+| pagerank_weighted | 100 | 95 | 0.9500 |
+| jaccard_weighted_degree | 100 | 90 | 0.9000 |
+| ppmi_weighted_degree | 100 | 74 | 0.7400 |
+| pagerank_jaccard | 100 | 91 | 0.9100 |
+| pagerank_ppmi | 100 | 84 | 0.8400 |
+
+Top-K overlap between raw PageRank and normalized PageRank:
+
+| Baseline metric | Graph metric | K | Overlap count | Overlap share |
+| --- | --- | --- | --- | --- |
+| pagerank_weighted | pagerank_jaccard | 10 | 8 | 0.8000 |
+| pagerank_weighted | pagerank_ppmi | 10 | 6 | 0.6000 |
+| pagerank_weighted | pagerank_jaccard | 20 | 17 | 0.8500 |
+| pagerank_weighted | pagerank_ppmi | 20 | 10 | 0.5000 |
+| pagerank_weighted | pagerank_jaccard | 50 | 46 | 0.9200 |
+| pagerank_weighted | pagerank_ppmi | 50 | 38 | 0.7600 |
+| pagerank_weighted | pagerank_jaccard | 100 | 95 | 0.9500 |
+| pagerank_weighted | pagerank_ppmi | 100 | 87 | 0.8700 |
+
+Generated normalized-analysis tables:
+- `artifacts/week12/ingredient_graph/top_ingredients_by_ppmi_pagerank.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_jaccard_pagerank.csv`
+- `artifacts/week12/ingredient_graph/generic_dominance_diagnostics.csv`
+- `artifacts/week12/ingredient_graph/comparison_raw_vs_normalized_centrality.csv`
+
+Figures:
+- `reports/figures/ingredient_graph_top_ppmi_pagerank.png`
+- `reports/figures/ingredient_graph_top_jaccard_pagerank.png`
+- `reports/figures/ingredient_graph_raw_vs_ppmi_pagerank_rank_shift.png`
+- `reports/figures/ingredient_graph_generic_dominance_comparison.png`
+- `reports/figures/ingredient_graph_ppmi_vs_popularity.png`
+
+The raw graph identifies the pantry-staple backbone of Food.com, while the normalized graph attempts to surface more distinctive ingredient associations. This makes the graph analysis more useful because it separates frequency-driven centrality from association-driven centrality. Normalized weights are sensitive to rare ingredients, so the min-node and min-edge thresholds remain necessary. PPMI does not prove substitution, causal compatibility, or flavor compatibility; it only identifies stronger-than-expected co-occurrence inside this dataset.
+
+## 10. Sensitivity Analysis
 
 Edge threshold matters because it controls whether weak one-off co-occurrences are retained. Lower thresholds keep more edges and usually create a denser, more connected graph. Higher thresholds emphasize stable co-occurrences but can isolate nodes and fragment components.
 
@@ -240,23 +376,23 @@ Top-20 PageRank overlap between thresholds:
 
 Stable top central ingredients indicate robust graph structure. Large overlap changes indicate sensitivity to the edge-definition threshold. Figure: `reports/figures/ingredient_graph_sensitivity_edges.png`
 
-## 10. Interpretation Note: What the Graph Means and Does Not Mean
+## 11. Interpretation Note: What the Graph Means and Does Not Mean
 
 Graph structure means ingredient co-occurrence patterns in the Food.com dataset. It can reflect culinary compatibility inside the dataset, pantry-staple centrality, bridge ingredients between culinary styles, and structural ingredient importance.
 
 Graph structure does not mean user preference, nutritional quality, causal compatibility, substitution equivalence, personalized recommendation, or universal cultural importance. It also does not prove that two ingredients taste good together outside the dataset context. Food.com may overrepresent American and Western comfort food, so central ingredients reflect the dataset's cuisine distribution and contributor behavior.
 
-## 11. Relationship to Previous Deliverables
+## 12. Relationship to Previous Deliverables
 
 Week 5 produced content embeddings from ingredient, category, keyword, and numeric features. Week 7 clustered recipes using semantic and numeric recipe representations. Week 10 ranked recipes using user behavior and content similarity. Week 12 adds a structural ingredient-network perspective that can support future cluster-aware and graph-aware recommendation.
 
-## 12. Limitations and Future Work
+## 13. Limitations and Future Work
 
-Ingredient normalization may not merge all synonyms. Raw co-occurrence favors common ingredients. The edge threshold affects graph density and component structure. Quantities, preparation instructions, and cooking order are ignored. The graph is undirected and does not capture preparation sequence. High centrality may be dominated by staples.
+Ingredient normalization may not merge all synonyms. Raw co-occurrence favors common ingredients. Normalized association weights reduce frequency dominance, but they can amplify rare or highly specific ingredients, so node and edge thresholds remain important. The edge threshold affects graph density and component structure. Quantities, preparation instructions, and cooking order are ignored. The graph is undirected and does not capture preparation sequence. High centrality may still include staples when they remain structurally central after normalization.
 
-Future work could use PMI, PPMI, or Jaccard-weighted graphs; recipe-recipe graphs; user-recipe bipartite graphs; synonym dictionaries; or graph-aware recommendation features.
+Future work could use synonym dictionaries, ingredient-family rollups, cuisine-aware subgraphs, temporal graph analysis, or graph-aware recommendation features.
 
-## 13. Reproducibility
+## 14. Reproducibility
 
 Exact command:
 
@@ -284,6 +420,12 @@ Generated artifacts under `artifacts/week12/ingredient_graph`:
 - `artifacts/week12/ingredient_graph/top_ingredients_by_weighted_degree.csv`
 - `artifacts/week12/ingredient_graph/top_ingredients_by_pagerank.csv`
 - `artifacts/week12/ingredient_graph/top_ingredients_by_log_pagerank.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_jaccard_degree.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_ppmi_degree.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_jaccard_pagerank.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_ppmi_pagerank.csv`
+- `artifacts/week12/ingredient_graph/comparison_raw_vs_normalized_centrality.csv`
+- `artifacts/week12/ingredient_graph/generic_dominance_diagnostics.csv`
 - `artifacts/week12/ingredient_graph/sensitivity_edge_thresholds.csv`
 - `artifacts/week12/ingredient_graph/sensitivity_top20_pagerank_overlap.csv`
 - `artifacts/week12/ingredient_graph/graph_pipeline_config.json`
@@ -297,3 +439,8 @@ Generated figures:
 - `reports/figures/ingredient_graph_top_pagerank.png`
 - `reports/figures/ingredient_graph_top_weighted_degree.png`
 - `reports/figures/ingredient_graph_sensitivity_edges.png`
+- `reports/figures/ingredient_graph_top_ppmi_pagerank.png`
+- `reports/figures/ingredient_graph_top_jaccard_pagerank.png`
+- `reports/figures/ingredient_graph_raw_vs_ppmi_pagerank_rank_shift.png`
+- `reports/figures/ingredient_graph_generic_dominance_comparison.png`
+- `reports/figures/ingredient_graph_ppmi_vs_popularity.png`
