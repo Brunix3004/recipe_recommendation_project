@@ -46,7 +46,7 @@ def main():
         if clusters is not None:
             print("[2] Discovered Recipe Clusters (Week 7):")
             for _, row in clusters.head(5).iterrows():
-                print(f"  - Cluster {row['cluster_id']}: Top Category: {row['top_category_1']} | Avg Cal: {row['avg_calories']:.1f}")
+                print(f"  - Cluster {row['cluster']}: Top Category: {row['dominant_category']} | Avg Cal: {row['avg_calories']:.1f}")
         else:
             print("[!] Cluster summary not found.")
 
