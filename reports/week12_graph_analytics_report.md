@@ -22,7 +22,7 @@ This graph is meaningful for the project because it captures ingredient relation
 
 ## 3. Graph Construction Pipeline
 
-Input data came from `data\processed\recipes_processed.csv`. The pipeline parses `RecipeIngredientParts`, normalizes ingredient strings, deduplicates ingredients within each recipe, sorts them for deterministic pair generation, counts ingredient frequencies and pair co-occurrences, applies node and edge thresholds, then persists the graph as CSV, GraphML, JSON, figures, and this report.
+Input data came from `data/processed/recipes_processed.csv`. The pipeline parses `RecipeIngredientParts`, normalizes ingredient strings, deduplicates ingredients within each recipe, sorts them for deterministic pair generation, counts ingredient frequencies and pair co-occurrences, applies node and edge thresholds, then persists the graph as CSV, GraphML, JSON, figures, and this report.
 
 Regeneration command:
 
@@ -407,40 +407,40 @@ python src/graphs/build_ingredient_graph.py \
   --sensitivity-edge-thresholds 5 10 20 50
 ```
 
-Generated artifacts under `artifacts\week12\ingredient_graph`:
+Generated artifacts under `artifacts/week12/ingredient_graph`:
 
-- `artifacts\week12\ingredient_graph\ingredient_nodes.csv`
-- `artifacts\week12\ingredient_graph\ingredient_edges.csv`
-- `artifacts\week12\ingredient_graph\ingredient_graph.graphml`
-- `artifacts\week12\ingredient_graph\ingredient_graph_summary.json`
-- `artifacts\week12\ingredient_graph\connected_components.csv`
-- `artifacts\week12\ingredient_graph\graph_validity_checks.csv`
-- `artifacts\week12\ingredient_graph\comparison_graph_vs_popularity.csv`
-- `artifacts\week12\ingredient_graph\top_ingredients_by_popularity.csv`
-- `artifacts\week12\ingredient_graph\top_ingredients_by_weighted_degree.csv`
-- `artifacts\week12\ingredient_graph\top_ingredients_by_pagerank.csv`
-- `artifacts\week12\ingredient_graph\top_ingredients_by_log_pagerank.csv`
-- `artifacts\week12\ingredient_graph\top_ingredients_by_jaccard_degree.csv`
-- `artifacts\week12\ingredient_graph\top_ingredients_by_ppmi_degree.csv`
-- `artifacts\week12\ingredient_graph\top_ingredients_by_jaccard_pagerank.csv`
-- `artifacts\week12\ingredient_graph\top_ingredients_by_ppmi_pagerank.csv`
-- `artifacts\week12\ingredient_graph\comparison_raw_vs_normalized_centrality.csv`
-- `artifacts\week12\ingredient_graph\generic_dominance_diagnostics.csv`
-- `artifacts\week12\ingredient_graph\sensitivity_edge_thresholds.csv`
-- `artifacts\week12\ingredient_graph\sensitivity_top20_pagerank_overlap.csv`
-- `artifacts\week12\ingredient_graph\graph_pipeline_config.json`
+- `artifacts/week12/ingredient_graph/ingredient_nodes.csv`
+- `artifacts/week12/ingredient_graph/ingredient_edges.csv`
+- `artifacts/week12/ingredient_graph/ingredient_graph.graphml`
+- `artifacts/week12/ingredient_graph/ingredient_graph_summary.json`
+- `artifacts/week12/ingredient_graph/connected_components.csv`
+- `artifacts/week12/ingredient_graph/graph_validity_checks.csv`
+- `artifacts/week12/ingredient_graph/comparison_graph_vs_popularity.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_popularity.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_weighted_degree.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_pagerank.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_log_pagerank.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_jaccard_degree.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_ppmi_degree.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_jaccard_pagerank.csv`
+- `artifacts/week12/ingredient_graph/top_ingredients_by_ppmi_pagerank.csv`
+- `artifacts/week12/ingredient_graph/comparison_raw_vs_normalized_centrality.csv`
+- `artifacts/week12/ingredient_graph/generic_dominance_diagnostics.csv`
+- `artifacts/week12/ingredient_graph/sensitivity_edge_thresholds.csv`
+- `artifacts/week12/ingredient_graph/sensitivity_top20_pagerank_overlap.csv`
+- `artifacts/week12/ingredient_graph/graph_pipeline_config.json`
 
 Generated figures:
 
-- `reports\figures\ingredient_graph_degree_distribution.png`
-- `reports\figures\ingredient_graph_weighted_degree_distribution.png`
-- `reports\figures\ingredient_graph_component_size_distribution.png`
-- `reports\figures\ingredient_graph_pagerank_vs_popularity.png`
-- `reports\figures\ingredient_graph_top_pagerank.png`
-- `reports\figures\ingredient_graph_top_weighted_degree.png`
-- `reports\figures\ingredient_graph_sensitivity_edges.png`
-- `reports\figures\ingredient_graph_top_ppmi_pagerank.png`
-- `reports\figures\ingredient_graph_top_jaccard_pagerank.png`
-- `reports\figures\ingredient_graph_raw_vs_ppmi_pagerank_rank_shift.png`
-- `reports\figures\ingredient_graph_generic_dominance_comparison.png`
-- `reports\figures\ingredient_graph_ppmi_vs_popularity.png`
+- `reports/figures/ingredient_graph_degree_distribution.png`
+- `reports/figures/ingredient_graph_weighted_degree_distribution.png`
+- `reports/figures/ingredient_graph_component_size_distribution.png`
+- `reports/figures/ingredient_graph_pagerank_vs_popularity.png`
+- `reports/figures/ingredient_graph_top_pagerank.png`
+- `reports/figures/ingredient_graph_top_weighted_degree.png`
+- `reports/figures/ingredient_graph_sensitivity_edges.png`
+- `reports/figures/ingredient_graph_top_ppmi_pagerank.png`
+- `reports/figures/ingredient_graph_top_jaccard_pagerank.png`
+- `reports/figures/ingredient_graph_raw_vs_ppmi_pagerank_rank_shift.png`
+- `reports/figures/ingredient_graph_generic_dominance_comparison.png`
+- `reports/figures/ingredient_graph_ppmi_vs_popularity.png`
