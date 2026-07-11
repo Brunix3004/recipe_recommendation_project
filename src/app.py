@@ -221,7 +221,7 @@ def render_graph_tab(context) -> None:
 
 def render_hybrid_tab(context) -> None:
     st.header("Personalized Hybrid Recommendations")
-    st.caption("Uses Collaborative SVD (60%) and content similarity (40%) to rank unseen recipes for an active AuthorId.")
+    st.caption("Uses Collaborative SVD (60%) and content similarity (40%) to rank unseen recipes for an active user.")
     load_model = st.button("Load hybrid model", type="primary")
     if load_model:
         try:
@@ -240,12 +240,23 @@ def render_hybrid_tab(context) -> None:
 
     state = st.session_state.get("hybrid_state") or cached_hybrid_state()
     users = active_user_ids(state)
-    use_random = st.checkbox("Use a reproducible random active user", value=True)
+    
+    # Initialize random user in session state if not present
+    if "random_author_id" not in st.session_state:
+        st.session_state["random_author_id"] = int(np.random.default_rng(42).choice(users))
+        
+    use_random = st.checkbox("Use a random active user", value=True)
     if use_random:
-        author_id = int(np.random.default_rng(42).choice(users))
+        # Button to choose another random user
+        if st.button("Shuffle random user"):
+            # Use non-seeded generator to get a new user
+            st.session_state["random_author_id"] = int(np.random.default_rng().choice(users))
+            
+        author_id = st.session_state["random_author_id"]
         st.caption(f"Selected AuthorId: {author_id}")
     else:
         author_id = int(st.number_input("AuthorId", min_value=min(users), max_value=max(users), step=1))
+        
     if author_id not in set(users):
         st.warning("This AuthorId is not an active user in the trained 5-core dataset.")
         return
