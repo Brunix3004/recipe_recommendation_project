@@ -20,40 +20,20 @@ project/
     figures/             # Visualizations
   artifacts/             # Saved models, data arrays, and metrics
   run_all_pipeline.ps1   # Master runbook script
-  run_all_pipeline.sh    # Master runbook script for macOS/Linux
 ```
 
 ## Setup Instructions
-Enforce Python 3.12+ and initialize the environment.
-
-### Windows PowerShell
+Enforce Python 3.12+ and initialize the environment:
 ```powershell
 .\setup_venv.ps1
 .\.venv\Scripts\Activate.ps1
 ```
 
-### macOS/Linux shell
-```bash
-python3 -c "import sys; assert sys.version_info >= (3, 12), 'Python 3.12+ required'"
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
 ## RUNBOOK: End-to-End Reproducibility
-To build the complete pipeline from scratch, ensure you have the raw data and run the command for your system.
-
-### Windows PowerShell
+To build the complete pipeline from scratch, ensure you have the raw data and run:
 ```powershell
 .\run_all_pipeline.ps1
 ```
-
-### macOS/Linux shell
-```bash
-bash run_all_pipeline.sh
-```
-
 This executes sequentially:
 1. **Week 3 (Ingestion):** `src/ingest_foodcom_data.py`
 2. **Week 5 (Feature Engineering):** Resolves features, builds content and numeric matrices, and reduces dimensions using PCA/SVD.
@@ -63,17 +43,9 @@ This executes sequentially:
 
 ## Final Demo
 To explore the generated outputs interactively:
-
-### Windows PowerShell
 ```powershell
 python src/demo.py --query "chicken"
 ```
-
-### macOS/Linux shell
-```bash
-python src/demo.py --query "chicken"
-```
-
 The demo will show:
 - Matching recipes.
 - Found clusters and average calorie information.

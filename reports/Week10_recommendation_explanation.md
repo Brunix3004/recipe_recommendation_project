@@ -89,7 +89,7 @@ The table below summarizes the performance of the four models:
 
 | Recommendation Model | Hit Rate @ 5 (HR@5) | Hit Rate @ 10 (HR@10) | NDCG @ 5 | NDCG @ 10 | MRR |
 | --- | :---: | :---: | :---: | :---: | :---: |
-| **Popularity Baseline (Bayesian)** | 0.0845 | 0.1392 | 0.0548 | 0.0723 | 0.0728 |
+| **Popularity Baseline (Bayesian)** | 0.0835 | 0.1373 | 0.0544 | 0.0717 | 0.0726 |
 | **Collaborative SVD (Stronger)** | 0.1418 | 0.2074 | 0.0977 | 0.1188 | 0.1108 |
 | **Content-Based SVD (Baseline)** | 0.1159 | 0.1999 | 0.0715 | 0.0984 | 0.0922 |
 | **Hybrid Recommender (CF + Content)** | 0.1440 | 0.2250 | 0.0978 | 0.1238 | 0.1154 |
@@ -126,12 +126,12 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) was success
             - **User ID (AuthorId)**: `293001` | **Recipe ID (RecipeId)**: `188331`
             - **Actual Rating Given**: 5.0 / 5.0
             - **Ranks**:
-            - Popularity Rank: `22` / 101
+            - Popularity Rank: `30` / 101
             - Content-SVD Rank: `1` / 101
             - Collaborative-SVD Rank: `15` / 101
             - **Hybrid Rank**: `1` / 101 (Successfully Recommended in #1 spot!)
             - **Scores**:
-            - CF Raw Score: `4.7778` | Content Similarity: `0.4107` | Blended Hybrid Score: `0.8598`
+            - CF Raw Score: `4.7778` | Content Similarity: `0.4107` | Blended Hybrid Score: `0.8599`
             - **Culinary / Behavior Diagnosis**: Success driven primarily by content semantics (content rank #1, similarity 0.4107). 'Ghostly Green Brew' is a Halloween-themed drink made from lime sherbet and ginger ale — a category (festive, cold beverages) very consistent with the content keywords in this user's taste profile. The relatively weaker CF signal (rank #15) makes sense: themed drinks are a niche interaction category in the dataset, so fewer behavioral neighbors have rated exactly this recipe. However, its ingredient and keyword representation in SVD space strongly mirrors the user's historical preferences, confirming that content-based embeddings capture culinary occasion context effectively.
             
             #### Case 3: Kittencal's Spinach &amp; Four-Cheese Manicotti (Vegetarian)
@@ -179,7 +179,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) failed to b
         - **User ID (AuthorId)**: `1443141` | **Recipe ID (RecipeId)**: `323372`
         - **Actual Rating Given**: 5.0 / 5.0
         - **Ranks**:
-        - Popularity Rank: `9` / 101
+        - Popularity Rank: `8` / 101
         - Content-SVD Rank: `86` / 101
         - Collaborative-SVD Rank: `66` / 101
         - **Hybrid Rank**: `85` / 101 (Failed to rank in Top 50!)
