@@ -61,23 +61,23 @@ This executes sequentially:
 4. **Week 10 (Recommendation):** Filters 5-core subset, runs chronological 80/20 train/test split, builds Bayesian Popularity baseline and Collaborative SVD Recommender, evaluates.
 5. **Week 12 (Graph Analytics):** Builds undirected ingredient-ingredient graph, calculates PageRank, Jaccard/PPMI centralities, and outputs graphs.
 
-## Final Demo
-To explore the generated outputs interactively:
+## Final Interactive Demo
+Explore search, clustering, ingredient-network pairings, and personalized hybrid recommendations:
 
 ### Windows PowerShell
 ```powershell
-python src/demo.py --query "chicken"
+python src/demo.py
 ```
 
 ### macOS/Linux shell
 ```bash
-python src/demo.py --query "chicken"
+python3 src/demo.py
 ```
 
-The demo will show:
-- Matching recipes.
-- Found clusters and average calorie information.
-- Highly central ingredients by PageRank in the graph.
+The menu includes:
+- Keyword search with similar recipes from the selected recipe's cluster.
+- Graph-based ingredient pairings using ingredient co-occurrence and PageRank.
+- Personalized hybrid recommendations for an active `AuthorId`; the model is trained on first use and reused for the rest of the session.
 
 ## Reports
 The overarching technical report is located in `reports/Week14_Final_Report.md`. Weekly intermediate reports are also available in the `reports/` folder.
