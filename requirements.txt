@@ -19,3 +19,4 @@ matplotlib
 scikit-learn
 networkx
 rich>=13
+streamlit>=1.37

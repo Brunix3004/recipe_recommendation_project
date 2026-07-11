@@ -1,0 +1,3 @@
+[server]
+# Avoid native file-watcher crashes observed with this macOS/Python setup.
+fileWatcherType = "none"
