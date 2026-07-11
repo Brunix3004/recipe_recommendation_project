@@ -131,7 +131,7 @@ These are cases where a highly rated test recipe (Rating 4.0 or 5.0) was success
             - Collaborative-SVD Rank: `15` / 101
             - **Hybrid Rank**: `1` / 101 (Successfully Recommended in #1 spot!)
             - **Scores**:
-            - CF Raw Score: `4.7778` | Content Similarity: `0.4107` | Blended Hybrid Score: `0.8599`
+            - CF Raw Score: `4.7778` | Content Similarity: `0.4107` | Blended Hybrid Score: `0.8598`
             - **Culinary / Behavior Diagnosis**: Success driven primarily by content semantics (content rank #1, similarity 0.4107). 'Ghostly Green Brew' is a Halloween-themed drink made from lime sherbet and ginger ale — a category (festive, cold beverages) very consistent with the content keywords in this user's taste profile. The relatively weaker CF signal (rank #15) makes sense: themed drinks are a niche interaction category in the dataset, so fewer behavioral neighbors have rated exactly this recipe. However, its ingredient and keyword representation in SVD space strongly mirrors the user's historical preferences, confirming that content-based embeddings capture culinary occasion context effectively.
             
             #### Case 3: Kittencal's Spinach &amp; Four-Cheese Manicotti (Vegetarian)

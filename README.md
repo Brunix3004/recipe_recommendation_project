@@ -15,7 +15,9 @@ project/
     features/            # Feature building, clustering, recommendation scripts
     graphs/              # Graph analytics scripts
     ingest_foodcom_data.py # Ingestion pipeline
-    demo.py              # Final interactive demo
+    demo.py              # Terminal demo
+    demo_core.py         # Shared demo data and model logic
+    app.py               # Streamlit web demo
   reports/               # Markdown reports by week
     figures/             # Visualizations
   artifacts/             # Saved models, data arrays, and metrics
@@ -63,6 +65,21 @@ This executes sequentially:
 
 ## Final Interactive Demo
 Explore search, clustering, ingredient-network pairings, and personalized hybrid recommendations:
+
+### Streamlit web app
+**Windows PowerShell:**
+```powershell
+python -m streamlit run src/app.py
+```
+
+**macOS/Linux:**
+```bash
+python3 -m streamlit run src/app.py
+```
+
+The project disables Streamlit's automatic file watcher for macOS stability. Restart the command after changing app files.
+
+The terminal demo remains available below for environments without a web browser.
 
 ### Windows PowerShell
 ```powershell
