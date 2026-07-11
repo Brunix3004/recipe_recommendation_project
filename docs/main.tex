@@ -1760,6 +1760,232 @@ Ingredient normalization may not merge all synonyms, quantities and preparation 
 
 Future work could include PMI/PPMI recipe-recipe graphs, cuisine-aware ingredient subgraphs, user-recipe bipartite graphs, synonym dictionaries, or graph-aware recommendation features that combine centrality with the Week 10 hybrid recommender.
 
+\section{Week 14: Integrated System and Final Results}
+
+\subsection{Overview of the Integrated Pipeline}
+The final milestone of this project implements a fully integrated and end-to-end reproducible pipeline. The pipeline is orchestrated via the PowerShell script \texttt{run\_all\_pipeline.ps1}, which connects the following five core components:
+\begin{enumerate}
+    \item \textbf{Data Ingestion (Week 3):} Downloads, cleans, and structures raw Food.com recipes and reviews.
+    \item \textbf{Feature Engineering and Dimensionality Reduction (Week 5):} Imputes missing values, clips outliers, constructs content (TF-IDF) and numeric matrices, and applies TruncatedSVD and PCA to generate the recipe embeddings.
+    \item \textbf{Recipe Clustering (Week 7):} Performs K-Means clustering on the Whitened-Frobenius equalized embedding space to identify latent culinary segments.
+    \item \textbf{Recommendation and Ranking (Week 10):} Splits interactions chronologically (80/20 train/test split per user), trains collaborative and content recommendation models, and scores user preferences.
+    \item \textbf{Graph Analytics (Week 12):} Constructs the undirected, weighted ingredient co-occurrence network and calculates centrality metrics (PageRank, PPMI, Jaccard).
+\end{enumerate}
+
+To verify the integration and inspect system outputs on demand, a CLI demo tool is provided in \texttt{src/demo.py}.
+
+\subsection{Pipeline Performance and Runtime Results}
+As this pipeline runs end-to-end on a local developer machine, execution speed, scalability, and memory footprints are critical. Below is the performance profiling table. The execution times and resource usages are to be populated based on the local system's execution profile.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llcc}
+\toprule
+\textbf{Pipeline Stage} & \textbf{Main Task/Command} & \textbf{Execution Time (s)} & \textbf{Memory Usage (MB)} \\
+\midrule
+Step 1: Data Ingestion & \texttt{ingest\_foodcom\_data.py} & [Insert time] s & [Insert RAM] MB \\
+Step 2: Features \& Dim. Red. & \texttt{build\_resolved\_features.py} & [Insert time] s & [Insert RAM] MB \\
+Step 3: Recipe Clustering & \texttt{run\_clustering\_experiments.py} & [Insert time] s & [Insert RAM] MB \\
+Step 4: Recommendation Engine & \texttt{run\_recommendation\_experiments.py} & [Insert time] s & [Insert RAM] MB \\
+Step 5: Graph Analytics & \texttt{build\_ingredient\_graph.py} & [Insert time] s & [Insert RAM] MB \\
+\midrule
+\textbf{Total End-to-End Run} & \texttt{run\_all\_pipeline.ps1} & \textbf{[Insert total time]} \textbf{s} & \textbf{[Insert peak RAM]} \textbf{MB} \\
+\bottomrule
+\end{tabular}
+\caption{End-to-End Pipeline Execution Runtimes and Memory Footprints.}
+\label{tab:pipeline_runtime}
+\end{table}
+
+\subsection{Integrated Recommendation System Evaluation}
+The offline evaluation protocol uses a chronological 80/20 train/test split. The metrics compare the non-personalized Bayesian Popularity baseline against Content-Based, Collaborative Filtering (SVD), and Hybrid approaches. These metrics can be updated based on terminal runs of the experiments:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Recommendation Model} & \textbf{Hit Rate@5} & \textbf{Hit Rate@10} & \textbf{NDCG@5} & \textbf{NDCG@10} & \textbf{MRR} \\
+\midrule
+Popularity Baseline (Bayesian) & [Insert HR@5] & [Insert HR@10] & [Insert NDCG@5] & [Insert NDCG@10] & [Insert MRR] \\
+Content-Based SVD (Baseline) & [Insert HR@5] & [Insert HR@10] & [Insert NDCG@5] & [Insert NDCG@10] & [Insert MRR] \\
+Collaborative SVD (Stronger) & [Insert HR@5] & [Insert HR@10] & [Insert NDCG@5] & [Insert NDCG@10] & [Insert MRR] \\
+Hybrid Recommender ($\alpha=0.6$) & [Insert HR@5] & [Insert HR@10] & [Insert NDCG@5] & [Insert NDCG@10] & [Insert MRR] \\
+\bottomrule
+\end{tabular}
+\caption{Personalized Recipe Recommendation Metrics on Test Set.}
+\label{tab:recommender_results_week14}
+\end{table}
+
+\subsection{Integrated Graph and Centrality Diagnostics}
+The ingredient co-occurrence network structural statistics at the selected edge threshold of 20:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Graph Metric} & \textbf{Value} \\
+\midrule
+Number of Retained Ingredient Nodes & [Insert count, e.g., 2,529] \\
+Number of Retained Undirected Edges & [Insert count, e.g., 88,757] \\
+Average Path Length (Largest Component) & [Insert avg path length] \\
+Network Diameter (Largest Component) & [Insert diameter] \\
+Clustering Coefficient (Average) & [Insert clustering coef] \\
+\bottomrule
+\end{tabular}
+\caption{Structural Network Analysis Statistics.}
+\label{tab:graph_results_week14}
+\end{table}
+
+\subsection{CLI Demo Execution Output}
+To evaluate and verify the system's integration we execute the CLI demo script (\texttt{python src/demo.py}) 
+This script was executed three times using different representative ingredient queries. These runs span a spectrum of culinary profiles, transitioning from savory main food categories (such as chicken or fish) to sweet dessert categories (such as chocolate). 
+
+\begin{verbatim}
+=========================================
+Recipe Intelligence System - Final Demo
+=========================================
+
+[*] Loaded 522517 recipes from recipes_processed.csv
+
+[1] Searching for recipes matching: 'chicken'
+  - [44] Warm Chicken A La King (Chicken)
+    Ingredients: ['chicken', 'butter', 'flour', 'milk', 'celery', 'button mushrooms', 'green pepper', 'canned pimiento', 'salt', 'black pepper', 'Worcestershire sauce', 'parsley']
+
+  - [49] Chicken Breasts Lombardi (Chicken Breast)
+    Ingredients: ['fresh mushrooms', 'butter', 'boneless skinless chicken breast halves', 'flour', 'butter', 'marsala', 'chicken broth', 'salt', 'mozzarella cheese', 'parmesan cheese', 'green onion']
+
+  - [71] Chicken and Dumplings (Whole Chicken)
+    Ingredients: ['chicken', 'carrot', 'celery', 'onion', 'chicken bouillon cubes', 'butter', 'flour', 'sherry wine', 'lemon juice', 'salt', 'baking powder', 'salt', 'shortening', 'milk', 'peas']
+
+  - [101] Braised Chicken with Onions and Tomatoes (Chicken Breast)
+    Ingredients: ['onions', 'gingerroot', 'garlic', 'green serrano chilies', 'tomatoes', 'black cardamom pods', 'cinnamon sticks', 'cloves', 'black peppercorns', 'bay leaves', 'cumin', 'cayenne pepper', 'turmeric', 'plain yogurt', 'dark rum', 'salt', 'cilantro', 'chicken pieces']
+
+  - [112] Chicken and Broccoli Lasagna (Chicken)
+    Ingredients: ['butter', 'flour', 'milk', 'chicken broth', 'eggs', 'parmesan cheese', 'butter', 'onion', 'garlic', 'chicken', 'broccoli', 'parsley', 'mozzarella cheese', 'parmesan cheese', 'salt', 'nutmeg']
+
+[2] Discovered Recipe Clusters (Week 7):
+  - Cluster 0: Top Category: lunch/snacks | Avg Cal: 422.7
+  - Cluster 1: Top Category: quick_breads | Avg Cal: 450.9
+  - Cluster 1: Top Category: quick_breads | Avg Cal: 450.9
+  - Cluster 2: Top Category: dessert | Avg Cal: 577.7
+  - Cluster 3: Top Category: one_dish_meal | Avg Cal: 529.5
+  - Cluster 4: Top Category: pork | Avg Cal: 572.6
+
+[3] Most Central Ingredients by PageRank (Week 12):
+  - salt (Score: 0.0594)
+  - butter (Score: 0.0297)
+  - onion (Score: 0.0265)
+  - sugar (Score: 0.0258)
+  - olive_oil (Score: 0.0223)
+
+=========================================
+Demo completed successfully!
+=========================================
+\end{verbatim}
+
+\begin{verbatim}
+=========================================
+Recipe Intelligence System - Final Demo
+=========================================
+
+[*] Loaded 522517 recipes from recipes_processed.csv
+
+[1] Searching for recipes matching: 'fish'
+  - [319] Fish Chowder (Chowders)
+    Ingredients: ['cod fish fillet', 'margarine', 'onion', 'celery', 'raw potatoes', 'carrot', 'boiling water', 'salt', 'pepper', 'milk']
+
+  - [338] Thai Fish Curry (Bass)
+    Ingredients: ['onion', 'fresh cilantro stems', 'fresh lemongrass', 'turmeric', 'fresh ginger', 'cumin', 'garlic cloves', 'sea bass fillet', 'canned unsweetened coconut milk', 'bottled clam juice', 'fresh cilantro', 'rice']
+
+  - [531] Grilled Swordfish or Tuna Steaks (Tuna)
+    Ingredients: ['soy sauce', 'dried parsley flakes', 'dried oregano', 'ketchup', 'tomato sauce', 'garlic clove', 'swordfish steaks', 'tuna steaks']
+
+  - [561] Golden Baked Fish (< 60 Mins)
+    Ingredients: ['pepper', 'salt', 'mayonnaise', 'dill weed', 'onion', 'fresh dill', 'lemon wedge']
+
+  - [660] Crawfish or Shrimp Cocktail (Crawfish)
+    Ingredients: ['crawfish', 'shrimp', 'Heinz Chili Sauce', 'catsup', 'horseradish', 'Lea & Perrins Worcestershire Sauce', 'salt', 'lemon juice', 'lime juice', 'parsley']
+
+[2] Discovered Recipe Clusters (Week 7):
+  - Cluster 0: Top Category: lunch/snacks | Avg Cal: 422.7
+  - Cluster 1: Top Category: quick_breads | Avg Cal: 450.9
+  - Cluster 2: Top Category: dessert | Avg Cal: 577.7
+  - Cluster 3: Top Category: one_dish_meal | Avg Cal: 529.5
+  - Cluster 4: Top Category: pork | Avg Cal: 572.6
+
+[3] Most Central Ingredients by PageRank (Week 12):
+  - salt (Score: 0.0594)
+  - butter (Score: 0.0297)
+  - onion (Score: 0.0265)
+  - sugar (Score: 0.0258)
+  - olive_oil (Score: 0.0223)
+
+=========================================
+Demo completed successfully!
+=========================================
+\end{verbatim}
+
+\begin{verbatim}
+=========================================
+Recipe Intelligence System - Final Demo
+=========================================
+
+[*] Loaded 522517 recipes from recipes_processed.csv
+
+[1] Searching for recipes matching: 'chocolate'
+  - [180] Chocolate Pound Cake (Dessert)
+    Ingredients: ['boiling water', 'vanilla', 'eggs', 'cake flour', 'sugar', 'sugar', 'baking powder', 'salt', 'unsalted butter']
+
+  - [206] Chocolate Almond Scones (Scones)
+    Ingredients: ['all-purpose flour', 'baking powder', 'sugar', 'salt', 'butter', 'eggs', 'chocolate chips']
+
+  - [209] Chocolate Bread and Butter Pudding (Dessert)
+    Ingredients: ['butter', 'chocolate chips', 'eggs', 'milk', 'sugar', 'sherry wine', 'vanilla']
+
+  - [212] Chocolate Caramels (Broil/Grill)
+    Ingredients: ['sugar', 'brown sugar', 'salt', 'corn syrup', 'heavy cream', 'vanilla', 'butter']
+
+  - [213] Chocolatey Raisin Chip Cookies (Drop Cookies)
+    Ingredients: ['brown sugar', 'sugar', 'canola oil', 'vanilla', 'water', 'flour', 'baking soda', 'raisins', 'walnuts']
+
+[2] Discovered Recipe Clusters (Week 7):
+  - Cluster 0: Top Category: lunch/snacks | Avg Cal: 422.7
+  - Cluster 1: Top Category: quick_breads | Avg Cal: 450.9
+  - Cluster 2: Top Category: dessert | Avg Cal: 577.7
+  - Cluster 3: Top Category: one_dish_meal | Avg Cal: 529.5
+  - Cluster 4: Top Category: pork | Avg Cal: 572.6
+
+[3] Most Central Ingredients by PageRank (Week 12):
+  - salt (Score: 0.0594)
+  - butter (Score: 0.0297)
+  - onion (Score: 0.0265)
+  - sugar (Score: 0.0258)
+  - olive_oil (Score: 0.0223)
+
+=========================================
+Demo completed successfully!
+=========================================
+\end{verbatim}
+
+\section{Final Conclusions}
+
+\subsection{Key Accomplishments}
+Over the course of the semester, this project successfully evolved from raw relational tables containing user feedback and recipe metadata into an end-to-end recipe recommendation and intelligence system. 
+\begin{itemize}
+    \item \textbf{Data Pipeline Maturity:} We established a clean, automated ingestion and feature engineering pipeline that handles right-skewed numerical macros and highly sparse textual features. The arithmetic recovery of missing cooking times is a prime example of domain-driven data cleaning.
+    \item \textbf{Latent Recipe Spaces:} Dimensionality reduction (PCA and Truncated SVD) compacted high-dimensional sparse representations into a cohesive 208-dimensional embedding space, which preserved key nutritional and ingredient semantics.
+    \item \textbf{Actionable Recipe Segmentation:} Clustering the balanced recipe representations with K-Means successfully separated the catalog into meaningful segments (such as calorie-dense desserts, protein-heavy main courses, and quick snacks), establishing a solid structural categorization of the corpus.
+    \item \textbf{Personalized Retrieval and Ranking:} We designed and evaluated a collaborative filtering model based on Singular Value Decomposition and built a hybrid recommendation engine. The hybrid model showed that blending behavioral cues and content SVD similarity yields the highest retrieval and ranking accuracy.
+    \item \textbf{Domain Structural Mapping:} Modeling the ingredient-ingredient interaction graph exposed the central pantry backbone. Normalized association models (PPMI and Jaccard) successfully reduced the dominance of highly frequent ingredients, highlighting genuine ingredient-pair affinities.
+\end{itemize}
+
+\subsection{Project Limitations and Future Work}
+While the final system meets all technical objectives, several areas remain open for future work:
+\begin{itemize}
+    \item \textbf{Cold-Start Challenges:} New recipes with zero ratings cannot be recommended by collaborative filtering. A content-based retrieval fallback or active learning approach is needed to address this.
+    \item \textbf{Non-Spherical Clustering:} K-Means assumes spherical clusters, whereas culinary segments may have arbitrary shapes. Density-based models like HDBSCAN or hierarchical clustering could capture more complex manifolds.
+    \item \textbf{Advanced Graph Models:} The ingredient-ingredient graph does not account for preparation steps or ingredient quantities. Modeling the recipes as a bipartite User-Recipe graph or training Graph Neural Networks (GNNs) on a Recipe-Ingredient heterogeneous network could further enhance recommendation richness.
+\end{itemize}
+
 \section{Pipeline Code Fragments}
 
 \subsection{List Parsing Function}
@@ -1814,12 +2040,41 @@ def parse_duration(duration: Any) -> Optional[float]:
 recipe-recommendation-system/
 ├── artifacts/
 │   ├── week5/
+│   │   ├── content_tf_idf_matrix/
+│   │   ├── numeric_matrix_outputs/
+│   │   ├── pca_svd/
+│   │   └── resolved_features_summaries/
 │   ├── week7/
+│   │   ├── cluster_visualizations/
+│   │   ├── clustering_matrix/
+│   │   ├── clustering_models/
+│   │   └── clustering_reports/
+│   │       └── cluster_profile_summary.csv
 │   ├── week10/
+│   │   ├── data_metadata.json
+│   │   ├── recommendation_error_analysis.json
+│   │   ├── recommendation_evaluation_summary.csv
+│   │   └── run_config.json
+│   ├── week12/
+│   │   └── ingredient_graph/
+│   │       ├── comparison_graph_vs_popularity.csv
+│   │       ├── comparison_raw_vs_normalized_centrality.csv
+│   │       ├── connected_components.csv
+│   │       ├── generic_dominance_diagnostics.csv
+│   │       ├── graph_pipeline_config.json
+│   │       ├── graph_validity_checks.csv
+│   │       ├── ingredient_edges.csv
+│   │       ├── ingredient_graph.graphml
+│   │       ├── ingredient_graph_summary.json
+│   │       ├── ingredient_nodes.csv
+│   │       ├── sensitivity_edge_thresholds.csv
+│   │       ├── sensitivity_top20_pagerank_overlap.csv
+│   │       └── top_ingredients_by_*.csv
 │   ├── ingredients_svd_features.npy
 │   └── num_pca_features.npy
 ├── data/
 │   ├── interim/
+│   │   └── recipes_resolved_features.parquet
 │   ├── manual_diagnoses.json
 │   └── processed/
 │       ├── recipes_processed.csv
@@ -1836,28 +2091,41 @@ recipe-recommendation-system/
 │   └── week7_clustering_audit.md
 ├── reports/
 │   ├── figures/
+│   │   ├── *.png
 │   ├── BigData_week3.pdf
 │   ├── BigData_week5.pdf
 │   ├── BigData_week7.pdf
 │   ├── week5_feature_pipeline_explanation.md
-│   ├── week7_Clustering_and_Recipe_Structure_Discovery.md
-│   └── week10_recommendation_explanation.md
+│   ├── Week 7_Clustering_and_Recipe_Structure_Discovery.md
+│   ├── Week10_recommendation_explanation.md
+│   ├── week12_graph_analytics_report.md
+│   └── Week14_Final_Report.md
 ├── src/
 │   ├── features/
-│       ├── build_content_matrix.py
-│       ├── build_numeric_matrix.py
-│       ├── build_resolved_features.py
-│       ├── CONTENT_MATRIX.MD
-│       ├── NUMERIC_MATRIX.MD
-│       ├── PCA_SVD.MD
-│       ├── reduce_dimensions.py
-│       ├── RESOLVED_FEATURES.MD
-│       ├── generate_week10_reports.py
-│       ├── run_recommendation_experiments.py
-│       ├── visualize_clusters.py
-│   ├── build_features.py
+│   │   ├── build_clustering_matrix.py
+│   │   ├── build_content_matrix.py
+│   │   ├── build_numeric_matrix.py
+│   │   ├── build_resolved_features.py
+│   │   ├── generate_week10_reports.py
+│   │   ├── generate_week7_reports.py
+│   │   ├── profile_clusters.py
+│   │   ├── reduce_dimensions.py
+│   │   ├── run_clustering_experiments.py
+│   │   ├── run_recommendation_experiments.py
+│   │   ├── visualize_clusters.py
+│   │   ├── CONTENT_MATRIX.MD
+│   │   ├── NUMERIC_MATRIX.MD
+│   │   ├── PCA_SVD.MD
+│   │   └── RESOLVED_FEATURES.MD
+│   ├── graphs/
+│   │   └── build_ingredient_graph.py
+│   ├── demo.py
 │   └── ingest_foodcom_data.py
-├── LICENCE
+├── run_all_pipeline.ps1
+├── run_week10_pipeline.ps1
+├── run_week7_pipeline.ps1
+├── setup_venv.ps1
+├── LICENSE
 ├── README.md
 ├── requirements.txt
 └── .gitignore
